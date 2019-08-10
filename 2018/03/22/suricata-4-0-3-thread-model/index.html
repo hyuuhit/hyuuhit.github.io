@@ -1,0 +1,489 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="hu yu's blog | Android | 服务端"><title>suricata 4.0.3 线程模型 | 属乌鸦的</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+ga('create','UA-129648993-1','auto');ga('send','pageview');
+</script><script>var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = 'https://hm.baidu.com/hm.js?' + '85d80db9310fa34ab2f7d34beeff589b';
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">suricata 4.0.3 线程模型</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">suricata 4.0.3 线程模型</h1><div class="post-meta">Mar 22, 2018 9:39 PM<span> | </span><span class="category"><a href="/categories/suricata/">suricata</a></span></div><div class="clear"><div class="toc-article" id="toc"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#线程模型"><span class="toc-number">1.</span> <span class="toc-text">线程模型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#总结"><span class="toc-number">1.1.</span> <span class="toc-text">总结</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#single-ids"><span class="toc-number">1.1.1.</span> <span class="toc-text">single(ids)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#workers-ids"><span class="toc-number">1.1.2.</span> <span class="toc-text">workers(ids)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#autofp-ids"><span class="toc-number">1.1.3.</span> <span class="toc-text">autofp(ids)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#主线程"><span class="toc-number">1.2.</span> <span class="toc-text">主线程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#工作线程"><span class="toc-number">1.3.</span> <span class="toc-text">工作线程</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#single-ids-1"><span class="toc-number">1.3.1.</span> <span class="toc-text">single(ids)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#workers-ids-1"><span class="toc-number">1.3.2.</span> <span class="toc-text">workers(ids)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#autofp-ids-1"><span class="toc-number">1.3.3.</span> <span class="toc-text">autofp(ids)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#线程入口函数"><span class="toc-number">1.4.</span> <span class="toc-text">线程入口函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#参数”pktacqloop”"><span class="toc-number">1.4.1.</span> <span class="toc-text">参数”pktacqloop”</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#参数”varslot”"><span class="toc-number">1.4.2.</span> <span class="toc-text">参数”varslot”</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#参数”command”"><span class="toc-number">1.4.3.</span> <span class="toc-text">参数”command”</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#参数”custom”"><span class="toc-number">1.4.4.</span> <span class="toc-text">参数”custom”</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#结构体"><span class="toc-number">2.</span> <span class="toc-text">结构体</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#ThreadVars"><span class="toc-number">2.1.</span> <span class="toc-text">ThreadVars</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#TmSlot"><span class="toc-number">2.2.</span> <span class="toc-text">TmSlot</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#TmModule"><span class="toc-number">2.3.</span> <span class="toc-text">TmModule</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Tmq"><span class="toc-number">2.4.</span> <span class="toc-text">Tmq</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Tmqh"><span class="toc-number">2.5.</span> <span class="toc-text">Tmqh</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#“packetpool”"><span class="toc-number">2.5.1.</span> <span class="toc-text">“packetpool”</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#“flow”"><span class="toc-number">2.5.2.</span> <span class="toc-text">“flow”</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#“simple”"><span class="toc-number">2.5.3.</span> <span class="toc-text">“simple”</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#“nfq”"><span class="toc-number">2.5.4.</span> <span class="toc-text">“nfq”</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Packet"><span class="toc-number">2.6.</span> <span class="toc-text">Packet</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PacketQueue"><span class="toc-number">2.7.</span> <span class="toc-text">PacketQueue</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PktPool"><span class="toc-number">2.8.</span> <span class="toc-text">PktPool</span></a></li></ol></li></ol></div></div><div class="post-content"><h2 id="线程模型"><a href="#线程模型" class="headerlink" title="线程模型"></a>线程模型</h2><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><h4 id="single-ids"><a href="#single-ids" class="headerlink" title="single(ids)"></a>single(ids)</h4><p>单工作线程完成所有工作。首个模块完成抓包，其他模块依次处理，没有后续队列。</p>
+<h4 id="workers-ids"><a href="#workers-ids" class="headerlink" title="workers(ids)"></a>workers(ids)</h4><p>根据监听网卡数量和每个网卡可启用的并行抓包线程数量确定工作线程数量。每个工作线程与single模式单线程工作流程一样，互不影响。</p>
+<h4 id="autofp-ids"><a href="#autofp-ids" class="headerlink" title="autofp(ids)"></a>autofp(ids)</h4><p>两种数据包处理线程，分别是收包线程和检测线程。收包线程和检测线程间通过PacketQueue传递数据包进行处理，每个检测线程对应一个队列，多个检测线程时需要为数据包选择队列以确保同一个流的数据包按顺序传递给同一个检测线程。</p>
+<h3 id="主线程"><a href="#主线程" class="headerlink" title="主线程"></a>主线程</h3><ul>
+<li>注册runmode，填充<code>runmodes</code>表<ul>
+<li>main函数中调用<code>RunModeRegisterRunModes</code>函数完成所有runmode的注册，填充了所有runmode的结构体RunMode，这里参考<a href="/2018/03/20/suricata-4-0-3-runmode/" title="suricata 4.0.3 runmode">suricata 4.0.3 runmode</a></li>
+</ul>
+</li>
+<li>注册队列处理程序，填充<code>tmqh_table</code>表<ul>
+<li>main函数中由<code>PostConfLoadedSetup</code>函数中调用<code>TmqhSetup</code>函数实现。填充了队列处理程序结构体Tmqh，填充队列处理程序name分别为<ul>
+<li>“simple”</li>
+<li>“nfq”</li>
+<li>“packetpool”</li>
+<li>“flow”</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>注册线程模块，填充<code>tmm_modules</code>表<ul>
+<li>main函数中由<code>PostConfLoadedSetup</code>函数中调用<code>RegisterAllModules</code>函数实现。每种抓包模式有receive和decode两种功能模块，IPS模式的抓包模型另外有一个verdict功能模块，其他还有公用的各种模块，名字列举如下。<ul>
+<li>“UnixManager”</li>
+<li>“FlowManager”</li>
+<li>“FlowRecycler”</li>
+<li>“FlowWorker”</li>
+<li>“RespondReject”</li>
+<li>“ReceivePcap”</li>
+<li>“DecodePcap”</li>
+<li>“ReceiveAFP”</li>
+<li>“DecodeAFP”</li>
+<li>······</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>运行所有线程模块的<code>Init</code>回调函数<ul>
+<li>main函数中由<code>PostConfLoadedSetup</code>函数中调用<code>TmModuleRunInit</code>函数实现，但是这里调试确认没有任何模块注册了这个回调函数。</li>
+</ul>
+</li>
+<li>执行RunMode结构体成员回调函数RunModeFunc<ul>
+<li>main函数中由RunModeDispatch函数确定当前应该选取的RunMode项，而后调用。</li>
+<li>不同runmode下回调函数针对当前抓包模式和线程模型创建适当数量的ThreadVars并挂载相应的TmModole，而后对每个ThreadVars启动一个数据包处理线程（TVT_PPT），下面详细描述。</li>
+</ul>
+</li>
+<li>创建flow mangaer、flow recycler、state wakeup、state management共四个管理线程（TVT_MGMT）。<ul>
+<li><code>RunModeDispatch</code>函数末尾执行。</li>
+</ul>
+</li>
+<li>创建unix manager命令接收线程（TVT_CMD）<ul>
+<li><code>main</code>函数中在<code>RunModeDispatch</code>函数后执行。</li>
+</ul>
+</li>
+</ul>
+<h3 id="工作线程"><a href="#工作线程" class="headerlink" title="工作线程"></a>工作线程</h3><p>针对不同的线程模型，有不同的线程组织关系</p>
+<h4 id="single-ids-1"><a href="#single-ids-1" class="headerlink" title="single(ids)"></a>single(ids)</h4><p>单工作线程完成所有工作。首个模块完成抓包，其他模块依次处理，没有后续队列。</p>
+<ul>
+<li>线程数量：1</li>
+<li>线程模块<ul>
+<li>该抓包模式的receive功能模块</li>
+<li>该抓包模式的decode功能模块</li>
+<li>“FlowWorker”模块</li>
+<li>“RespondReject”模块</li>
+</ul>
+</li>
+<li>线程入口<ul>
+<li>“pktacqloop” <code>TmThreadsSlotPktAcqLoop</code></li>
+</ul>
+</li>
+<li>inq<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>tmqh_in<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>outctx<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>outq<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>tmqh_out<ul>
+<li>packetpool队列处理程序的OutHandler，清理并释放。</li>
+</ul>
+</li>
+</ul>
+<p><img src="http://blog-image.hyuuhit.com/2018/03/suricata-thread-model/single.png" alt="single模式线程如图"></p>
+<h4 id="workers-ids-1"><a href="#workers-ids-1" class="headerlink" title="workers(ids)"></a>workers(ids)</h4><p>每个工作线程与single模式单线程工作流程一样，互不影响。</p>
+<ul>
+<li>线程数量：网卡接口数量 * 每个网卡接口可并发的抓包线程数。</li>
+<li>线程模块：内部与single模式一致。</li>
+</ul>
+<p><img src="http://blog-image.hyuuhit.com/2018/03/suricata-thread-model/workers.png" alt="workers模式线程如图"></p>
+<h4 id="autofp-ids-1"><a href="#autofp-ids-1" class="headerlink" title="autofp(ids)"></a>autofp(ids)</h4><p>两种数据包处理线程，分别是收包线程和检测线程。收包线程和检测线程见通过PacketQueue传递数据包进行处理，每个检测线程对应一个队列，多个检测线程时需要为数据包选择队列以确保同一个流的数据包按顺序传递给同一个检测线程。</p>
+<ul>
+<li>收包线程<ul>
+<li>线程数量：网卡接口数量 * 每个网卡接口可并发的抓包线程数。</li>
+<li>线程模块<ul>
+<li>该抓包模式的receive功能模块</li>
+<li>该抓包模式的decode功能模块</li>
+</ul>
+</li>
+<li>线程入口<ul>
+<li>“pktacqloop” <code>TmThreadsSlotPktAcqLoop</code></li>
+</ul>
+</li>
+<li>inq<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>tmqh_in<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>outctx<ul>
+<li>存储了worker线程数量相等的PacketQueue，用于将数据包交于对应的worker线程进行检测。</li>
+</ul>
+</li>
+<li>outq<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>tmqh_out<ul>
+<li>flow队列处理程序的OutHandler，根据数据包流调度算法hash或ippaire将数据包放入相应队列。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>检测线程<ul>
+<li>线程数量<ol>
+<li>若配置文件项<code>threading.set-cpu-affinity</code>为TRUE时，线程数量为<code>threading.worker-cpu-set.threads</code>。否则为0。</li>
+<li>若线程数量为0，则线程数量修改为 cpu数量 * 配置文件项<code>threading.detect-thread-ratio</code>。</li>
+<li>若线程数量小于1，则取1</li>
+<li>若线程数量大于1024，则取1024</li>
+</ol>
+</li>
+<li>线程模块<ul>
+<li>“FlowWorker”模块</li>
+<li>“RespondReject”模块</li>
+</ul>
+</li>
+<li>线程入口<ul>
+<li>“varslot” <code>TmThreadsSlotVar</code></li>
+</ul>
+</li>
+<li>inq<ul>
+<li>一个实际的Tmq，存储了该检测线程应当读取的trans_q数据包队列数组中的项目序号。</li>
+</ul>
+</li>
+<li>tmqh_in<ul>
+<li>flow队列处理程序的InHandler，从inq标识的数据包队列中读取数据包。</li>
+</ul>
+</li>
+<li>outctx<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>outq<ul>
+<li>无意义</li>
+</ul>
+</li>
+<li>tmqh_out<ul>
+<li>packetpool队列处理程序的OutHandler，清理并释放。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="http://blog-image.hyuuhit.com/2018/03/suricata-thread-model/autofp.png" alt="autofp模式线程如图"></p>
+<h3 id="线程入口函数"><a href="#线程入口函数" class="headerlink" title="线程入口函数"></a>线程入口函数</h3><h4 id="参数”pktacqloop”"><a href="#参数”pktacqloop”" class="headerlink" title="参数”pktacqloop”"></a>参数”pktacqloop”</h4><p><code>TmThreadsSlotPktAcqLoop</code></p>
+<ul>
+<li>阻塞SIGUSR2信号。</li>
+<li>生效线程名。</li>
+<li>生效thread_setup_flasgs.</li>
+<li>在线程私有数据（TSD）中创建一个PktPool，并创建max_pending_packets（默认为1024，最大为65534，配置文件可配置）数量的packet，链接到该池子。用于存储捕获到的数据包，并减少内存反复分配。</li>
+<li>按顺序运行每个TmSlot中的SlotThreadInit函数指针（也就是TmModule中的ThreadInit函数指针），传递slot_initdata也就是网卡接口配置作为初始化参数，传递slot_data的地址用以设置该成员作为初始化的输出。</li>
+<li>按顺序初始化每个TmSlot中的slot_pre_pq和slot_post_pq成员，并初始化了这两个PacketQueue中的mutex锁。</li>
+<li>配置ThreadVars的stream_pq成员。TODO</li>
+<li>好像配置了统计相关的东西。TODO</li>
+<li><strong>循环调用首个TmSlot的PktAcqLoop函数指针，三个参数分别是ThreadVars实例，刚刚初始化后的slot_data，TmSlot实例自身。</strong><ul>
+<li>线程内通过调用<code>TmThreadsSlotProcessPkt</code>对每一个数据包进行处理。</li>
+<li><code>TmThreadsSlotProcessPkt</code>内调用<code>TmThreadsSlotVarRun</code>将数据包从传入的TmSlot（这里应该已经是抓包模块之后的模块了，也就是解码模块）开始处理。<ul>
+<li><code>TmThreadsSlotVarRun</code>内调用TmSlot的SlotFunc函数指针处理数据包。</li>
+<li>SlotFunc处理完成后，检查TmSlot的slot_pre_pq，若不为空则调递归调用<code>TmThreadsSlotVarRun</code>从下一个TmSlot开始处理slot_pre_pq中的数据包，处理完成后调用tmqh_out释放数据包。</li>
+<li>循环处理直到清空slot_pre_pq。</li>
+<li>重复上述过程，直到所有TmSlot都经过上述处理。</li>
+</ul>
+</li>
+<li><code>TmThreadsSlotVarRun</code>返回后调用tmqh_out队列处理程序将数据包释放。</li>
+<li>数据包释放后检查TmSlot的slot_post_pq项，若队列中有数据包，则调用<code>TmThreadsSlotVarRun</code>将数据包从下一个TmSlot开始处理，处理完成后交由tmqh_out释放，循环处理直到队列清空。</li>
+<li>顺序处理每个TmSlot的slot_post_pq项。</li>
+</ul>
+</li>
+<li>每次调用PktAcqLoop后检查是否应该退出，若应退出则跳出循环。</li>
+<li>跳出循环后又是统计相关。TODO</li>
+<li>看起来是处理流过期的。TODO</li>
+<li>销毁PktPool内的Packet及其他相关内存。</li>
+<li>按顺序调用每个TmSlot的SlotThreadExitPrintStats和SlotThreadDeinit函数指针。</li>
+<li>ThreadVars实例的stream_pq置NULL。</li>
+<li>线程退出。</li>
+</ul>
+<h4 id="参数”varslot”"><a href="#参数”varslot”" class="headerlink" title="参数”varslot”"></a>参数”varslot”</h4><p><code>TmThreadsSlotVar</code></p>
+<ul>
+<li>阻塞SIGUSR2信号。</li>
+<li>在线程私有数据（TSD）中创建一个PktPool，与”pktacqloop”不同，这里并不预分配Packet。</li>
+<li>生效线程名。</li>
+<li>生效thread_setup_flasgs.</li>
+<li>按顺序运行每个TmSlot中的SlotThreadInit函数指针（也就是TmModule中的ThreadInit函数指针），这里不需要slot_initdata。</li>
+<li>按顺序初始化每个TmSlot中的slot_pre_pq和slot_post_pq成员，并初始化了这两个PacketQueue中的mutex锁。</li>
+<li>配置ThreadVars的stream_pq成员。TODO</li>
+<li>好像配置了统计相关的东西。TODO</li>
+<li><strong>循环调用ThreadVars的tmqh_in获取数据包，对数据包调用<code>TmThreadsSlotVarRun</code>（内部逻辑见”pktacqloop”），后续对数据包和slot_pre_pq以及slot_post_pq队列的处理逻辑与”pktacqloop”处理逻辑一致。</strong></li>
+<li>后续逻辑与”pktacqloop”一致。</li>
+</ul>
+<h4 id="参数”command”"><a href="#参数”command”" class="headerlink" title="参数”command”"></a>参数”command”</h4><p><code>TmThreadsManagement</code><br>TODO</p>
+<h4 id="参数”custom”"><a href="#参数”custom”" class="headerlink" title="参数”custom”"></a>参数”custom”</h4><p>设置为参数中配置的函数指针</p>
+<h2 id="结构体"><a href="#结构体" class="headerlink" title="结构体"></a>结构体</h2><h3 id="ThreadVars"><a href="#ThreadVars" class="headerlink" title="ThreadVars"></a>ThreadVars</h3><p>线程所有需要的运行参数保存与此，可以看作一个线程实例</p>
+<figure class="highlight c"><figcaption><span>threadvars.h中ThreadVars结构定义，对应了一个线程实例。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/** \brief Per thread variable structure */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ThreadVars_</span> &#123;</span></span><br><span class="line">    <span class="keyword">pthread_t</span> t;</span><br><span class="line">    <span class="keyword">char</span> name[<span class="number">16</span>];</span><br><span class="line">    <span class="keyword">char</span> *printable_name;</span><br><span class="line">    <span class="keyword">char</span> *thread_group_name;</span><br><span class="line"></span><br><span class="line">    SC_ATOMIC_DECLARE(<span class="keyword">unsigned</span> <span class="keyword">int</span>, flags);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** TmModule::flags for each module part of this thread */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> tmm_flags;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** local id */</span></span><br><span class="line">    <span class="keyword">int</span> id;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** queue's */</span></span><br><span class="line">    Tmq *inq;</span><br><span class="line">    Tmq *outq;</span><br><span class="line">    <span class="keyword">void</span> *outctx;</span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *outqh_name;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** queue handlers */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span> * (*<span class="title">tmqh_in</span>)(<span class="title">struct</span> <span class="title">ThreadVars_</span> *);</span></span><br><span class="line">    <span class="keyword">void</span> (*InShutdownHandler)(struct ThreadVars_ *);</span><br><span class="line">    <span class="keyword">void</span> (*tmqh_out)(struct ThreadVars_ *, struct Packet_ *);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** slot functions */</span></span><br><span class="line">    <span class="keyword">void</span> *(*tm_func)(<span class="keyword">void</span> *);</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">TmSlot_</span> *<span class="title">tm_slots</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** stream packet queue for flow time out injection */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">PacketQueue_</span> *<span class="title">stream_pq</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint8_t</span> thread_setup_flags;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** the type of thread as defined in tm-threads.h (TVT_PPT, TVT_MGMT) */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> type;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint16_t</span> cpu_affinity; <span class="comment">/** cpu or core number to set affinity to */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> rank;</span><br><span class="line">    <span class="keyword">int</span> thread_priority; <span class="comment">/** priority (real time) for this thread. Look at threads.h */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* counters */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** public counter store: counter syncs update this */</span></span><br><span class="line">    StatsPublicThreadContext perf_public_ctx;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** private counter store: counter updates modify this */</span></span><br><span class="line">    StatsPrivateThreadContext perf_private_ctx;</span><br><span class="line"></span><br><span class="line">    SCCtrlMutex *ctrl_mutex;</span><br><span class="line">    SCCtrlCondT *ctrl_cond;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint8_t</span> cap_flags; <span class="comment">/**&lt; Flags to indicate the capabilities of all the</span></span><br><span class="line"><span class="comment">                         TmModules resgitered under this thread */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ThreadVars_</span> *<span class="title">next</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ThreadVars_</span> *<span class="title">prev</span>;</span></span><br><span class="line">&#125; ThreadVars;</span><br></pre></td></tr></table></figure>
+<p>ThreadVars中各字段含义如下：</p>
+<ul>
+<li>t<ul>
+<li>线程句柄</li>
+</ul>
+</li>
+<li>name<ul>
+<li>线程短名字，会设置到线程名中。</li>
+</ul>
+</li>
+<li>printable_name<ul>
+<li>线程完整名字，基本没用，目前看counter中好像有使用，不确定。</li>
+</ul>
+</li>
+<li>thread_group_name<ul>
+<li>完全没有用。</li>
+</ul>
+</li>
+<li>flags<ul>
+<li>标记线程当前状态，通过宏扩展成flags_sc_atomic。</li>
+</ul>
+</li>
+<li>tmm_flags<ul>
+<li>线程下所有挂载的TmModule的flags成员的或集，用于标记线程所具备的功能。</li>
+</ul>
+</li>
+<li>id<ul>
+<li>注册到thread_store中的序号，1开始。</li>
+</ul>
+</li>
+<li>inq<ul>
+<li>输入数据包的队列Tmq，成员中的id标记了当前线程的输入数据包队列应该使用trans_q数组中的第几项，与tmqh_in配合。数据包捕获线程未使用该项。autofp(ids)模式下worker(检测)线程使用该项。</li>
+</ul>
+</li>
+<li>tmqh_in<ul>
+<li>输入数据包的队列处理程序中的InHandler，用于线程获取需要处理的数据包。autofp(ids)模式下worker(检测)线程使用该项，</li>
+</ul>
+</li>
+<li>InShutdownHandler<ul>
+<li>tmqh_in所属的队列处理程序中的InShutdownHandler。</li>
+</ul>
+</li>
+<li>outq<ul>
+<li>好像没有地方使用了该项。</li>
+</ul>
+</li>
+<li>outctx<ul>
+<li>autofp线程模型下，数据包捕获线程需要将数据包转交给一组worker(检测)线程，每个捕获线程需要保存所有worker线程的PacketQueue，该项用于存储所有这些PacketQueue。</li>
+</ul>
+</li>
+<li>outqh_name<ul>
+<li>输出数据包的队列处理程序的名字。</li>
+</ul>
+</li>
+<li>tmqh_out<ul>
+<li>输出数据包的队列处理程序中的OutHandler，用于线程将处理完成的数据包通过PacketQueue转交给下一个线程或释放该数据包。</li>
+</ul>
+</li>
+<li>tm_func<ul>
+<li>线程的入口函数，这里根据创建线程实例时传递的参数，可有几种选项。<ul>
+<li>参数”varslot”，<code>TmThreadsSlotVar</code></li>
+<li>参数”pktacqloop”，<code>TmThreadsSlotPktAcqLoop</code></li>
+<li>参数”command”，<code>TmThreadsManagement</code></li>
+<li>参数”custom”，设置为参数中配置的函数指针</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>tm_slots<ul>
+<li>线程下所有挂载的TmSlot结构链表，其实也就是所有关联的TmModule。</li>
+</ul>
+</li>
+<li>stream_pq</li>
+<li>thread_setup_flags<ul>
+<li>枚举型，标记当前线程在启动后是否需要配置优先级和cpu亲和度。共三种可选<ul>
+<li>THREAD_SET_AFFINITY</li>
+<li>THREAD_SET_PRIORITY</li>
+<li>THREAD_SET_AFFTYPE</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>type<ul>
+<li>标记线程类型，根据该类型将线程连接到全局变量数组tv_root下，同类型线程用prev和next成员连接成链表。共三种<ul>
+<li>TVT_PPT 数据包处理线程</li>
+<li>TVT_MGMT 管理线程</li>
+<li>TVT_CMD 指令接收线程</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>cpu_affinity<ul>
+<li>当thread_setup_flags为THREAD_SET_AFFINITY时，这里保存的是线程所需要配置的cpu亲和度。</li>
+<li>当thread_setup_flags为THREAD_SET_AFFTYPE时，这里是枚举型，标记当前线程配置cpu亲和度所处的cpu集合类型。共四种可选。<ul>
+<li>RECEIVE_CPU_SET</li>
+<li>WORKER_CPU_SET</li>
+<li>VERDICT_CPU_SET</li>
+<li>MANAGEMENT_CPU_SET</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>rank</li>
+<li>thread_priority</li>
+<li>perf_public_ctx</li>
+<li>perf_private_ctx</li>
+<li>ctrl_mutex</li>
+<li>ctrl_cond</li>
+<li>cap_flags<ul>
+<li>线程下所有挂载的TmModule的cap_flags成员的或集，用于标记线程工作所需要的所有能力（权限）。</li>
+</ul>
+</li>
+<li>next<ul>
+<li>在全局变量数组tv_root下，同类型线程连接成链表</li>
+</ul>
+</li>
+<li>prev<ul>
+<li>在全局变量数组tv_root下，同类型线程连接成链表</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>tm-threads.c中定义有thread_store，注册了所有生成的ThreadVars实例，看起来可以重复使用ThreadVars。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Thread_</span> &#123;</span></span><br><span class="line">    ThreadVars *tv;     <span class="comment">/**&lt; threadvars structure */</span></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *name;</span><br><span class="line">    <span class="keyword">int</span> type;</span><br><span class="line">    <span class="keyword">int</span> in_use;         <span class="comment">/**&lt; bool to indicate this is in use */</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">timeval</span> <span class="title">ts</span>;</span>  <span class="comment">/**&lt; current time of this thread (offline mode) */</span></span><br><span class="line">&#125; Thread;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Threads_</span> &#123;</span></span><br><span class="line">    Thread *threads;</span><br><span class="line">    <span class="keyword">size_t</span> threads_size;</span><br><span class="line">    <span class="keyword">int</span> threads_cnt;</span><br><span class="line">&#125; Threads;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> Threads thread_store = &#123; <span class="literal">NULL</span>, <span class="number">0</span>, <span class="number">0</span> &#125;;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/03/suricata-thread-model/relation.png" alt="ThreadVars关联的部分结构"></p>
+<h3 id="TmSlot"><a href="#TmSlot" class="headerlink" title="TmSlot"></a>TmSlot</h3><p>一个TmSlot结构可以看作一个TmModule结构挂载到ThreadVars时的运行时形态。</p>
+<figure class="highlight c"><figcaption><span>tm-threads.h 中定义有TmSlot结构。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">TmEcode</span> <span class="params">(*TmSlotFunc)</span><span class="params">(ThreadVars *, Packet *, <span class="keyword">void</span> *, PacketQueue *,</span></span></span><br><span class="line"><span class="function"><span class="params">        PacketQueue *)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">TmSlot_</span> &#123;</span></span><br><span class="line">    <span class="comment">/* the TV holding this slot */</span></span><br><span class="line">    ThreadVars *tv;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* function pointers */</span></span><br><span class="line">    SC_ATOMIC_DECLARE(TmSlotFunc, SlotFunc);</span><br><span class="line"></span><br><span class="line">    TmEcode (*PktAcqLoop)(ThreadVars *, <span class="keyword">void</span> *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">    TmEcode (*SlotThreadInit)(ThreadVars *, <span class="keyword">const</span> <span class="keyword">void</span> *, <span class="keyword">void</span> **);</span><br><span class="line">    <span class="keyword">void</span> (*SlotThreadExitPrintStats)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line">    TmEcode (*SlotThreadDeinit)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* data storage */</span></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">void</span> *slot_initdata;</span><br><span class="line">    SC_ATOMIC_DECLARE(<span class="keyword">void</span> *, slot_data);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* queue filled by the SlotFunc with packets that will</span></span><br><span class="line"><span class="comment">     * be processed futher _before_ the current packet.</span></span><br><span class="line"><span class="comment">     * The locks in the queue are NOT used */</span></span><br><span class="line">    PacketQueue slot_pre_pq;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* queue filled by the SlotFunc with packets that will</span></span><br><span class="line"><span class="comment">     * be processed futher _after_ the current packet. The</span></span><br><span class="line"><span class="comment">     * locks in the queue are NOT used */</span></span><br><span class="line">    PacketQueue slot_post_pq;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* store the thread module id */</span></span><br><span class="line">    <span class="keyword">int</span> tm_id;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* slot id, only used my TmVarSlot to know what the first slot is */</span></span><br><span class="line">    <span class="keyword">int</span> id;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* linked list, only used when you have multiple slots(used by TmVarSlot) */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">TmSlot_</span> *<span class="title">slot_next</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* just called once, so not perf critical */</span></span><br><span class="line">    TmEcode (*Management)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">&#125; TmSlot;</span><br></pre></td></tr></table></figure>
+<p>TmSlot中各成员含义如下：</p>
+<ul>
+<li>tv<ul>
+<li>归属的ThreadVar</li>
+</ul>
+</li>
+<li>SlotFunc<ul>
+<li>TmModule中的Func函数，用于数据包处理。为什么用原子类型声明，我觉得可能是因为有病吧。</li>
+</ul>
+</li>
+<li>PktAcqLoop<ul>
+<li>TmModule中的同名PktAcqLoop函数，用于数据包捕获。</li>
+</ul>
+</li>
+<li>SlotThreadInit<ul>
+<li>TmModule中的ThreadInit函数。</li>
+</ul>
+</li>
+<li>SlotThreadExitPrintStats<ul>
+<li>TmModule中的ThreadExitPrintStats函数。</li>
+</ul>
+</li>
+<li>SlotThreadDeinit<ul>
+<li>TmModule中的ThreadDeinit函数。</li>
+</ul>
+</li>
+<li>slot_initdata<ul>
+<li>配置文件中该抓包模式下特定网卡配置参数的内存存储。每种抓包模式都有自己所需要的配置参数，并且对每个网卡接口都可以不同，每个线程只能对一个网卡抓包，这里记录了该网卡接口的配置参数。此项只对收包模块有意义。</li>
+</ul>
+</li>
+<li>slot_data<ul>
+<li>线程入口函数中调用SlotThreadInit，将初始化生成的后续需要的数据存储在slot_data该项。</li>
+</ul>
+</li>
+<li>slot_pre_pq<ul>
+<li>这是一个PacketQueue，当SlotFunc被调用以处理数据包时，可能会生成新的需要处理的伪造数据包，插入slot_pre_pq队列的伪造数据包将先于原有数据包从下一个TmSlot开始处理。当原数据包经过所有TmSlot处理且所有TmSlot的slot_pre_pq都清空后，原数据包由tmqh_out交给下一个线程或释放。目前看到IP数据包分片的处理需要这个队列。</li>
+</ul>
+</li>
+<li>slot_post_pq<ul>
+<li>这是一个PacketQueue，当SlotFunc被调用以处理数据包时，可能会生成新的需要处理的伪造数据包，插入slot_post_pq队列的伪造数据包将晚于原有数据包进入下一个TmSlot开始处理。当原数据包由tmqh_out交给下一个线程或释放后，才能开始slot_post_pq的处理。目前未看到需要这个队列的场景。</li>
+</ul>
+</li>
+<li>tm_id<ul>
+<li>TmModule在tmm_modules中注册的id。</li>
+</ul>
+</li>
+<li>id<ul>
+<li>挂载到ThreadVars上的顺序号，从0开始。</li>
+</ul>
+</li>
+<li>slot_next<ul>
+<li>用于链接后续TmSlot，构成一个链表。</li>
+</ul>
+</li>
+<li>Management<ul>
+<li>TmModule中的同名Management函数，暂时不确定作用。</li>
+</ul>
+</li>
+</ul>
+<h3 id="TmModule"><a href="#TmModule" class="headerlink" title="TmModule"></a>TmModule</h3><p>线程模块</p>
+<figure class="highlight c"><figcaption><span>tm-modules.h中线程模块TmModule结构定义</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">TmEcode</span> <span class="params">(*ThreadInitFunc)</span><span class="params">(ThreadVars *, <span class="keyword">const</span> <span class="keyword">void</span> *, <span class="keyword">void</span> **)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">TmEcode</span> <span class="params">(*ThreadDeinitFunc)</span><span class="params">(ThreadVars *, <span class="keyword">void</span> *)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">typedef</span> <span class="title">void</span> <span class="params">(*ThreadExitPrintStatsFunc)</span><span class="params">(ThreadVars *, <span class="keyword">void</span> *)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">TmModule_</span> &#123;</span></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *name;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** thread handling */</span></span><br><span class="line">    TmEcode (*ThreadInit)(ThreadVars *, <span class="keyword">const</span> <span class="keyword">void</span> *, <span class="keyword">void</span> **);</span><br><span class="line">    <span class="keyword">void</span> (*ThreadExitPrintStats)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line">    TmEcode (*ThreadDeinit)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** the packet processing function */</span></span><br><span class="line">    TmEcode (*Func)(ThreadVars *, Packet *, <span class="keyword">void</span> *, PacketQueue *, PacketQueue *);</span><br><span class="line"></span><br><span class="line">    TmEcode (*PktAcqLoop)(ThreadVars *, <span class="keyword">void</span> *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** terminates the capture loop in PktAcqLoop */</span></span><br><span class="line">    TmEcode (*PktAcqBreakLoop)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">    TmEcode (*Management)(ThreadVars *, <span class="keyword">void</span> *);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** global Init/DeInit */</span></span><br><span class="line">    TmEcode (*Init)(<span class="keyword">void</span>);</span><br><span class="line">    TmEcode (*DeInit)(<span class="keyword">void</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">void</span> (*RegisterTests)(<span class="keyword">void</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint8_t</span> cap_flags;   <span class="comment">/**&lt; Flags to indicate the capability requierment of</span></span><br><span class="line"><span class="comment">                           the given TmModule */</span></span><br><span class="line">    <span class="comment">/* Other flags used by the module */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> flags;</span><br><span class="line">&#125; TmModule;</span><br><span class="line"></span><br><span class="line">TmModule tmm_modules[TMM_SIZE];</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><figcaption><span>tm-threads-common.h中定义有所有的线程模块id。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/** \brief Thread Model Module id's.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  \note anything added here should also be added to TmModuleTmmIdToString</span></span><br><span class="line"><span class="comment"> *        in tm-modules.c</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="keyword">enum</span> &#123;</span><br><span class="line">    TMM_FLOWWORKER,</span><br><span class="line">    TMM_DECODENFQ,</span><br><span class="line">    TMM_VERDICTNFQ,</span><br><span class="line">    TMM_RECEIVENFQ,</span><br><span class="line">    TMM_RECEIVEPCAP,</span><br><span class="line">    TMM_RECEIVEPCAPFILE,</span><br><span class="line">    TMM_DECODEPCAP,</span><br><span class="line">    TMM_DECODEPCAPFILE,</span><br><span class="line">    TMM_RECEIVEPFRING,</span><br><span class="line">    TMM_DECODEPFRING,</span><br><span class="line">    TMM_RESPONDREJECT,</span><br><span class="line">    TMM_DECODEIPFW,</span><br><span class="line">    TMM_VERDICTIPFW,</span><br><span class="line">    TMM_RECEIVEIPFW,</span><br><span class="line">    TMM_RECEIVEERFFILE,</span><br><span class="line">    TMM_DECODEERFFILE,</span><br><span class="line">    TMM_RECEIVEERFDAG,</span><br><span class="line">    TMM_DECODEERFDAG,</span><br><span class="line">    TMM_RECEIVEAFP,</span><br><span class="line">    TMM_DECODEAFP,</span><br><span class="line">    TMM_RECEIVENETMAP,</span><br><span class="line">    TMM_DECODENETMAP,</span><br><span class="line">    TMM_ALERTPCAPINFO,</span><br><span class="line">    TMM_RECEIVEMPIPE,</span><br><span class="line">    TMM_DECODEMPIPE,</span><br><span class="line">    TMM_RECEIVENAPATECH,</span><br><span class="line">    TMM_DECODENAPATECH,</span><br><span class="line">    TMM_STATSLOGGER,</span><br><span class="line">    TMM_RECEIVENFLOG,</span><br><span class="line">    TMM_DECODENFLOG,</span><br><span class="line"></span><br><span class="line">    TMM_FLOWMANAGER,</span><br><span class="line">    TMM_FLOWRECYCLER,</span><br><span class="line">    TMM_DETECTLOADER,</span><br><span class="line"></span><br><span class="line">    TMM_UNIXMANAGER,</span><br><span class="line"></span><br><span class="line">    TMM_SIZE,</span><br><span class="line">&#125; TmmId;</span><br></pre></td></tr></table></figure>
+<h3 id="Tmq"><a href="#Tmq" class="headerlink" title="Tmq"></a>Tmq</h3><p>线程队列，与数据包队列不同，Tmq用于定位线程的输入或输出使用哪个或哪些具体的PacketQueue。</p>
+<figure class="highlight c"><figcaption><span>tm-queues.h中Tmq结构定义</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Tmq_</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span> *name;</span><br><span class="line">    <span class="keyword">uint16_t</span> id;</span><br><span class="line">    <span class="keyword">uint16_t</span> reader_cnt;</span><br><span class="line">    <span class="keyword">uint16_t</span> writer_cnt;</span><br><span class="line">    <span class="comment">/* 0 for packet-queue and 1 for data-queue */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> q_type;</span><br><span class="line">&#125; Tmq;</span><br></pre></td></tr></table></figure>
+<p>Tmq中各成员含义如下：</p>
+<ul>
+<li>name<ul>
+<li>创建队列时使用的名字，队列的上下游使用名字以确定同一个队列。</li>
+</ul>
+</li>
+<li>id<ul>
+<li>顺序增长的id，标识了这个Tmq所对应的PacketQueue位于全局trans_q数组的哪一项上。trans_q是一个PacketQueue数组。</li>
+</ul>
+</li>
+<li>reader_cnt<ul>
+<li>标识了该队列有几个读者。</li>
+</ul>
+</li>
+<li>writer_cnt<ul>
+<li>标识了该队列有几个写者。</li>
+</ul>
+</li>
+<li>q_type<ul>
+<li>标识了队列是数据包队列还是数据队列，貌似是cuda使用的，不确定。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>tm-queues.c中同样有一个存储了所有Tmq的数组，除了预先分配了Tmq的空间，并没有什么用。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> TMQ_MAX_QUEUES 256</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">uint16_t</span> tmq_id = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">static</span> Tmq tmqs[TMQ_MAX_QUEUES];</span><br></pre></td></tr></table></figure>
+<h3 id="Tmqh"><a href="#Tmqh" class="headerlink" title="Tmqh"></a>Tmqh</h3><p>队列处理程序，线程对数据包的输入和输出，由队列处理程序负责，比如ThreadVars中的tmqh_in负责从PacketQueue中取得上游线程输出的Packet，tmqh_out负责将本线程输出的数据包交付给下一阶段。<br>输入的特殊情况是，抓包线程的输入数据包由相应的receive模块获得，因此tmqh_in无意义。<br>输出的特殊情况是，最后一个工作线程由于没有下一阶段，因此tmqh_out的实际功能是将数据包返回池子或释放。</p>
+<figure class="highlight c"><figcaption><span>tm-queuehandlers.h中Tmqh结构定义</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">enum</span> &#123;</span><br><span class="line">    TMQH_SIMPLE,</span><br><span class="line">    TMQH_NFQ,</span><br><span class="line">    TMQH_PACKETPOOL,</span><br><span class="line">    TMQH_FLOW,</span><br><span class="line"></span><br><span class="line">    TMQH_SIZE,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Tmqh_</span> &#123;</span></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *name;</span><br><span class="line">    Packet *(*InHandler)(ThreadVars *);</span><br><span class="line">    <span class="keyword">void</span> (*InShutdownHandler)(ThreadVars *);</span><br><span class="line">    <span class="keyword">void</span> (*OutHandler)(ThreadVars *, Packet *);</span><br><span class="line">    <span class="keyword">void</span> *(*OutHandlerCtxSetup)(<span class="keyword">const</span> <span class="keyword">char</span> *);</span><br><span class="line">    <span class="keyword">void</span> (*OutHandlerCtxFree)(<span class="keyword">void</span> *);</span><br><span class="line">    <span class="keyword">void</span> (*RegisterTests)(<span class="keyword">void</span>);</span><br><span class="line">&#125; Tmqh;</span><br><span class="line"></span><br><span class="line">Tmqh tmqh_table[TMQH_SIZE];</span><br></pre></td></tr></table></figure>
+<h4 id="“packetpool”"><a href="#“packetpool”" class="headerlink" title="“packetpool”"></a>“packetpool”</h4><figure class="highlight c"><figcaption><span>tmqh-packetpool.c中"packetpool"队列处理程序注册</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">TmqhPacketpoolRegister</span> <span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    tmqh_table[TMQH_PACKETPOOL].name = <span class="string">"packetpool"</span>;</span><br><span class="line">    tmqh_table[TMQH_PACKETPOOL].InHandler = TmqhInputPacketpool;</span><br><span class="line">    tmqh_table[TMQH_PACKETPOOL].OutHandler = TmqhOutputPacketpool;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>InHandler<br>TmqhInputPacketpool，从当前线程的线程私有数据区域的PktPool中取Packet。</li>
+<li>OutHandler<br>TmqhOutputPacketpool，如果Packet是隧道类型数据包，针对隧道类型做一些处理。之后将Packet释放，是释放到其所属线程的PktPool中还是释放内存取决于其ReleasePacket函数指针。</li>
+</ul>
+<h4 id="“flow”"><a href="#“flow”" class="headerlink" title="“flow”"></a>“flow”</h4><figure class="highlight c"><figcaption><span>tmqh-flow.c中"flow"队列处理程序注册</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">TmqhFlowRegister</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    tmqh_table[TMQH_FLOW].name = <span class="string">"flow"</span>;</span><br><span class="line">    tmqh_table[TMQH_FLOW].InHandler = TmqhInputFlow;</span><br><span class="line">    tmqh_table[TMQH_FLOW].OutHandlerCtxSetup = TmqhOutputFlowSetupCtx;</span><br><span class="line">    tmqh_table[TMQH_FLOW].OutHandlerCtxFree = TmqhOutputFlowFreeCtx;</span><br><span class="line">    tmqh_table[TMQH_FLOW].RegisterTests = TmqhFlowRegisterTests;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *scheduler = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">if</span> (ConfGet(<span class="string">"autofp-scheduler"</span>, &amp;scheduler) == <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (strcasecmp(scheduler, <span class="string">"round-robin"</span>) == <span class="number">0</span>) &#123;</span><br><span class="line">            SCLogNotice(<span class="string">"using flow hash instead of round robin"</span>);</span><br><span class="line">            tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowHash;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (strcasecmp(scheduler, <span class="string">"active-packets"</span>) == <span class="number">0</span>) &#123;</span><br><span class="line">            SCLogNotice(<span class="string">"using flow hash instead of active packets"</span>);</span><br><span class="line">            tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowHash;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (strcasecmp(scheduler, <span class="string">"hash"</span>) == <span class="number">0</span>) &#123;</span><br><span class="line">            tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowHash;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (strcasecmp(scheduler, <span class="string">"ippair"</span>) == <span class="number">0</span>) &#123;</span><br><span class="line">            tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowIPPair;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            SCLogError(SC_ERR_INVALID_YAML_CONF_ENTRY, <span class="string">"Invalid entry \"%s\" "</span></span><br><span class="line">                    <span class="string">"for autofp-scheduler in conf.  Killing engine."</span>,</span><br><span class="line">                    scheduler);</span><br><span class="line">            <span class="built_in">exit</span>(EXIT_FAILURE);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowHash;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>InHandler<br>TmqhInputFlow，确定当前读取的PacketQueue为&amp;trans_q[tv-&gt;inq-&gt;id]，取出Packet。</li>
+<li>OutHandlerCtxSetup<br>TmqhOutputFlowSetupCtx，通过传入的逗号分隔的一组队列名，创建相应的一组队列，存储到结构体TmqhFlowCtx中并将结构体指针返回后存储在ThreadVars成员outctx中。</li>
+<li>OutHandlerCtxFree<br>TmqhOutputFlowFreeCtx，释放TmqhOutputFlowSetupCtx分配出的内存。主线程中被调用。</li>
+<li>OutHandler<br>通过配置文件的autofp-scheduler项选择使用的数据包分配调度策略，”hash”和”ippaire”是有效选项，旧的不在有效的选项和未配置该项都会生效为”hash”。<ul>
+<li>TmqhOutputFlowHash，以Packet的flow_hash项选择ThreadVars成员outctx中的一个PacketQueue，将数据包入队列交付给相应的worker线程处理。</li>
+<li>TmqhOutputFlowIPPair，以数据包的源和目的地址两项选择ThreadVars成员outctx中的一个PacketQeueue，将数据包入队列交付给相应的worker线程处理。</li>
+</ul>
+</li>
+</ul>
+<h4 id="“simple”"><a href="#“simple”" class="headerlink" title="“simple”"></a>“simple”</h4><figure class="highlight c"><figcaption><span>tmqh-simple.c中"simple"队列处理程序注册</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">TmqhSimpleRegister</span> <span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    tmqh_table[TMQH_SIMPLE].name = <span class="string">"simple"</span>;</span><br><span class="line">    tmqh_table[TMQH_SIMPLE].InHandler = TmqhInputSimple;</span><br><span class="line">    tmqh_table[TMQH_SIMPLE].InShutdownHandler = TmqhInputSimpleShutdownHandler;</span><br><span class="line">    tmqh_table[TMQH_SIMPLE].OutHandler = TmqhOutputSimple;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="“nfq”"><a href="#“nfq”" class="headerlink" title="“nfq”"></a>“nfq”</h4><figure class="highlight c"><figcaption><span>tmqh-nfq.c中"nfq"队列处理程序注册</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">TmqhNfqRegister</span> <span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    tmqh_table[TMQH_NFQ].name = <span class="string">"nfq"</span>;</span><br><span class="line">    tmqh_table[TMQH_NFQ].InHandler = <span class="literal">NULL</span>;</span><br><span class="line">    tmqh_table[TMQH_NFQ].OutHandler = TmqhOutputVerdictNfq;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="Packet"><a href="#Packet" class="headerlink" title="Packet"></a>Packet</h3><p>数据包，suricata内通用的数据包结构，不同抓包模式获取的数据包都封装为此结构，其中保存了实际捕获的数据包数据和数据长度，prev和next结构使其可构成链表以存入PacketQueue，pool指出了所属的池子，ReleasePacket函数指针用以确定数据包释放的具体方式（比如返回池子或直接释放内存）。</p>
+<figure class="highlight c"><figcaption><span>decode.h 中Packet的定义</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * .........</span></span><br><span class="line"><span class="comment">     * .........</span></span><br><span class="line"><span class="comment">     * something</span></span><br><span class="line"><span class="comment">     * .........</span></span><br><span class="line"><span class="comment">     * .........</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* double linked list ptrs */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span> *<span class="title">next</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span> *<span class="title">prev</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The Packet pool from which this packet was allocated. Used when returning</span></span><br><span class="line"><span class="comment">     * the packet to its owner's stack. If NULL, then allocated with malloc.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">PktPool_</span> *<span class="title">pool</span>;</span></span><br><span class="line"></span><br><span class="line">&#125; Packet;</span><br></pre></td></tr></table></figure>
+<h3 id="PacketQueue"><a href="#PacketQueue" class="headerlink" title="PacketQueue"></a>PacketQueue</h3><p>数据包队列，top和bot指示了一个Packet链表的首尾，用于上下游不同数据包处理线程间的数据包传递。由于是多线程并发访问，需要锁和信号量。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PacketQueue_</span> &#123;</span></span><br><span class="line">    Packet *top;</span><br><span class="line">    Packet *bot;</span><br><span class="line">    <span class="keyword">uint32_t</span> len;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> DBG_PERF</span></span><br><span class="line">    <span class="keyword">uint32_t</span> dbg_maxlen;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span> <span class="comment">/* DBG_PERF */</span></span></span><br><span class="line">    SCMutex mutex_q;</span><br><span class="line">    SCCondT cond_q;</span><br><span class="line">&#125; PacketQueue;</span><br></pre></td></tr></table></figure>
+<h3 id="PktPool"><a href="#PktPool" class="headerlink" title="PktPool"></a>PktPool</h3><p>数据包池，Packet的池子，可以预先分配一定数量的Packet，以降低后期创建Packet的内存操作代价。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Return stack, onto which other threads free packets. */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PktPoolLockedStack_</span>&#123;</span></span><br><span class="line">    <span class="comment">/* linked list of free packets. */</span></span><br><span class="line">    SCMutex mutex;</span><br><span class="line">    SCCondT cond;</span><br><span class="line">    SC_ATOMIC_DECLARE(<span class="keyword">int</span>, sync_now);</span><br><span class="line">    Packet *head;</span><br><span class="line">&#125; __attribute__((aligned(CLS))) PktPoolLockedStack;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PktPool_</span> &#123;</span></span><br><span class="line">    <span class="comment">/* link listed of free packets local to this thread.</span></span><br><span class="line"><span class="comment">     * No mutex is needed.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    Packet *head;</span><br><span class="line">    <span class="comment">/* Packets waiting (pending) to be returned to the given Packet</span></span><br><span class="line"><span class="comment">     * Pool. Accumulate packets for the same pool until a theshold is</span></span><br><span class="line"><span class="comment">     * reached, then return them all at once.  Keep the head and tail</span></span><br><span class="line"><span class="comment">     * to fast insertion of the entire list onto a return stack.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">PktPool_</span> *<span class="title">pending_pool</span>;</span></span><br><span class="line">    Packet *pending_head;</span><br><span class="line">    Packet *pending_tail;</span><br><span class="line">    <span class="keyword">uint32_t</span> pending_count;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> DEBUG_VALIDATION</span></span><br><span class="line">    <span class="keyword">int</span> initialized;</span><br><span class="line">    <span class="keyword">int</span> destroyed;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span> <span class="comment">/* DEBUG_VALIDATION */</span></span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* All members above this point are accessed locally by only one thread, so</span></span><br><span class="line"><span class="comment">     * these should live on their own cache line.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Return stack, where other threads put packets that they free that belong</span></span><br><span class="line"><span class="comment">     * to this thread.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PktPoolLockedStack return_stack;</span><br><span class="line">&#125; PktPool;</span><br></pre></td></tr></table></figure>
+<p>PktPool中各成员含义如下：</p>
+<ul>
+<li>head<ul>
+<li>挂载当前池子可用的数据包结构，线程操作私有池子时不需要加锁。</li>
+</ul>
+</li>
+<li>pending_pool<ul>
+<li>需要归还的数据包属于其他池子时，可挂载到当前线程的pending_head上，并用pending_pool标记出pending_head上数据包所属的其他线程的池子，只能pending一个其他线程的数据包。当pending数量达到配置上限或那个池子标记了需要同步时将pending的数据包整体归还。</li>
+</ul>
+</li>
+<li>pending_head</li>
+<li>pending_tail</li>
+<li>pending_count</li>
+<li>return_stack<ul>
+<li>其他线程需要将packet归还到本线程时，会将packet链接到return_stack上。本线程需要取得未使用的Packet且head上已经为空时，会尝试将return_stack上的链表切换到head上。由于有多线程操作，return_stack内包含锁和信号量。</li>
+</ul>
+</li>
+</ul>
+</div><div class="tags"></div><div class="post-nav"><a class="pre" href="/2018/04/05/network-device-list/">获取网卡列表的几种方式</a><a class="next" href="/2018/03/20/suricata-4-0-3-runmode/">suricata 4.0.3 runmode</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://www.hyuuhit.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/suricata/">suricata</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/工具/" style="font-size: 15px;">工具</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/vmware/" style="font-size: 15px;">vmware</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/05/06/noblock-rabbitmq-c/">rabbitmq-c 非阻塞订阅</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/04/20/libyaml/">libyaml 解析配置文件</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/03/23/netns/">Linux network namespace 简单解读</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/11/af-packet-bpf/">AF_PACKET & BPF 伪造arp响应</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/04/nonblock-redis/">hiredis & libev 非阻塞模式</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/13/nwfilter/">libvirt nwfilter 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/03/libxml2/">libxml2 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/11/20/virt-install/">virt-install 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/11/08/rcu/">Linux RCU 内核同步机制</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/17/linux-kernel-timer/">Linux timer 内核软件定时器</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2019 <a href="/." rel="nofollow">属乌鸦的.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

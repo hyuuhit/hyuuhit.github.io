@@ -1,0 +1,426 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="hu yu's blog | Android | 服务端"><title>suricata 4.0.3 收包解码 | 属乌鸦的</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+ga('create','UA-129648993-1','auto');ga('send','pageview');
+</script><script>var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = 'https://hm.baidu.com/hm.js?' + '85d80db9310fa34ab2f7d34beeff589b';
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">suricata 4.0.3 收包解码</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">suricata 4.0.3 收包解码</h1><div class="post-meta">Apr 16, 2018 5:56 PM<span> | </span><span class="category"><a href="/categories/suricata/">suricata</a></span></div><div class="clear"><div class="toc-article" id="toc"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Packet"><span class="toc-number">1.</span> <span class="toc-text">Packet</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#收包"><span class="toc-number">2.</span> <span class="toc-text">收包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#解码"><span class="toc-number">3.</span> <span class="toc-text">解码</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#链路层解码"><span class="toc-number">3.1.</span> <span class="toc-text">链路层解码</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeEthernet"><span class="toc-number">3.1.1.</span> <span class="toc-text">DecodeEthernet</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeSll"><span class="toc-number">3.1.2.</span> <span class="toc-text">DecodeSll</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodePPP"><span class="toc-number">3.1.3.</span> <span class="toc-text">DecodePPP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeRaw"><span class="toc-number">3.1.4.</span> <span class="toc-text">DecodeRaw</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeNull"><span class="toc-number">3.1.5.</span> <span class="toc-text">DecodeNull</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeVLAN"><span class="toc-number">3.1.6.</span> <span class="toc-text">DecodeVLAN</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#网络层解码"><span class="toc-number">3.2.</span> <span class="toc-text">网络层解码</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeIPV4"><span class="toc-number">3.2.1.</span> <span class="toc-text">DecodeIPV4</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeIPV6"><span class="toc-number">3.2.2.</span> <span class="toc-text">DecodeIPV6</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#传输层解码"><span class="toc-number">3.3.</span> <span class="toc-text">传输层解码</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeTCP"><span class="toc-number">3.3.1.</span> <span class="toc-text">DecodeTCP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeUDP"><span class="toc-number">3.3.2.</span> <span class="toc-text">DecodeUDP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeICMPV4"><span class="toc-number">3.3.3.</span> <span class="toc-text">DecodeICMPV4</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#隧道数据包"><span class="toc-number">4.</span> <span class="toc-text">隧道数据包</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#GRE"><span class="toc-number">4.1.</span> <span class="toc-text">GRE</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#DecodeGRE"><span class="toc-number">4.1.1.</span> <span class="toc-text">DecodeGRE</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#IPv6-over-IPv4"><span class="toc-number">4.2.</span> <span class="toc-text">IPv6 over IPv4</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#分片数据包"><span class="toc-number">5.</span> <span class="toc-text">分片数据包</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#分片相关初始化"><span class="toc-number">5.1.</span> <span class="toc-text">分片相关初始化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#分片数据包处理"><span class="toc-number">5.2.</span> <span class="toc-text">分片数据包处理</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#DefragGetTracker"><span class="toc-number">5.2.1.</span> <span class="toc-text">DefragGetTracker</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DefragInsertFrag"><span class="toc-number">5.2.2.</span> <span class="toc-text">DefragInsertFrag</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DefragTrackerRelease"><span class="toc-number">5.2.3.</span> <span class="toc-text">DefragTrackerRelease</span></a></li></ol></li></ol></li></ol></div></div><div class="post-content"><p>suricata中receive和decode两个模块总是在一个线程中，而且每种receive模块都对应一个自己的decode模块，因此这里记录在一起。这两个模块的主要目标是根据收取的数据包填充合适的Packet结构，交由flowworker进行后续处理。decode阶段同时做了分片数据包重组、隧道数据包解封装等处理。</p>
+<h2 id="Packet"><a href="#Packet" class="headerlink" title="Packet"></a>Packet</h2><p>整个数据包的处理流程都是围绕Packet结构体来操作的，先看一下这个结构体，其他关联的结构比较简单，不做更多记录。</p>
+<figure class="highlight c"><figcaption><span>Packet结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* sizes of the members:</span></span><br><span class="line"><span class="comment"> * src: 17 bytes</span></span><br><span class="line"><span class="comment"> * dst: 17 bytes</span></span><br><span class="line"><span class="comment"> * sp/type: 1 byte</span></span><br><span class="line"><span class="comment"> * dp/code: 1 byte</span></span><br><span class="line"><span class="comment"> * proto: 1 byte</span></span><br><span class="line"><span class="comment"> * recurs: 1 byte</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * sum of above: 38 bytes</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * flow ptr: 4/8 bytes</span></span><br><span class="line"><span class="comment"> * flags: 1 byte</span></span><br><span class="line"><span class="comment"> * flowflags: 1 byte</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * sum of above 44/48 bytes</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="comment">/* Addresses, Ports and protocol</span></span><br><span class="line"><span class="comment">     * these are on top so we can use</span></span><br><span class="line"><span class="comment">     * the Packet as a hash key */</span></span><br><span class="line">    Address src;</span><br><span class="line">    Address dst;</span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        Port sp;</span><br><span class="line">        <span class="keyword">uint8_t</span> type;</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        Port dp;</span><br><span class="line">        <span class="keyword">uint8_t</span> code;</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">uint8_t</span> proto;</span><br><span class="line">    <span class="comment">/* make sure we can't be attacked on when the tunneled packet</span></span><br><span class="line"><span class="comment">     * has the exact same tuple as the lower levels */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> recursion_level;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint16_t</span> vlan_id[<span class="number">2</span>];</span><br><span class="line">    <span class="keyword">uint8_t</span> vlan_idx;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* flow */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> flowflags;</span><br><span class="line">    <span class="comment">/* coccinelle: Packet:flowflags:FLOW_PKT_ */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Pkt Flags */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> flags;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Flow_</span> *<span class="title">flow</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* raw hash value for looking up the flow, will need to modulated to the</span></span><br><span class="line"><span class="comment">     * hash size still */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> flow_hash;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">timeval</span> <span class="title">ts</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        <span class="comment">/* nfq stuff */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> HAVE_NFLOG</span></span><br><span class="line">        NFLOGPacketVars nflog_v;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span> <span class="comment">/* HAVE_NFLOG */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> NFQ</span></span><br><span class="line">        NFQPacketVars nfq_v;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span> <span class="comment">/* NFQ */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> IPFW</span></span><br><span class="line">        IPFWPacketVars ipfw_v;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span> <span class="comment">/* IPFW */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> AF_PACKET</span></span><br><span class="line">        AFPPacketVars afp_v;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> HAVE_MPIPE</span></span><br><span class="line">        <span class="comment">/* tilegx mpipe stuff */</span></span><br><span class="line">        MpipePacketVars mpipe_v;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> HAVE_NETMAP</span></span><br><span class="line">        NetmapPacketVars netmap_v;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">        <span class="comment">/** libpcap vars: shared by Pcap Live mode and Pcap File mode */</span></span><br><span class="line">        PcapPacketVars pcap_v;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The release function for packet structure and data */</span></span><br><span class="line">    <span class="keyword">void</span> (*ReleasePacket)(struct Packet_ *);</span><br><span class="line">    <span class="comment">/** The function triggering bypass the flow in the capture method.</span></span><br><span class="line"><span class="comment">     * Return 1 for success and 0 on error */</span></span><br><span class="line">    <span class="keyword">int</span> (*BypassPacketsFlow)(struct Packet_ *);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* pkt vars */</span></span><br><span class="line">    PktVar *pktvar;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* header pointers */</span></span><br><span class="line">    EthernetHdr *ethh;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Checksum for IP packets. */</span></span><br><span class="line">    <span class="keyword">int32_t</span> level3_comp_csum;</span><br><span class="line">    <span class="comment">/* Check sum for TCP, UDP or ICMP packets */</span></span><br><span class="line">    <span class="keyword">int32_t</span> level4_comp_csum;</span><br><span class="line"></span><br><span class="line">    IPV4Hdr *ip4h;</span><br><span class="line"></span><br><span class="line">    IPV6Hdr *ip6h;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* IPv4 and IPv6 are mutually exclusive */</span></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        IPV4Vars ip4vars;</span><br><span class="line">        <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">            IPV6Vars ip6vars;</span><br><span class="line">            IPV6ExtHdrs ip6eh;</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="comment">/* Can only be one of TCP, UDP, ICMP at any given time */</span></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        TCPVars tcpvars;</span><br><span class="line">        ICMPV4Vars icmpv4vars;</span><br><span class="line">        ICMPV6Vars icmpv6vars;</span><br><span class="line">    &#125; l4vars;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> tcpvars     l4vars.tcpvars</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> icmpv4vars  l4vars.icmpv4vars</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> icmpv6vars  l4vars.icmpv6vars</span></span><br><span class="line"></span><br><span class="line">    TCPHdr *tcph;</span><br><span class="line"></span><br><span class="line">    UDPHdr *udph;</span><br><span class="line"></span><br><span class="line">    SCTPHdr *sctph;</span><br><span class="line"></span><br><span class="line">    ICMPV4Hdr *icmpv4h;</span><br><span class="line"></span><br><span class="line">    ICMPV6Hdr *icmpv6h;</span><br><span class="line"></span><br><span class="line">    PPPHdr *ppph;</span><br><span class="line">    PPPOESessionHdr *pppoesh;</span><br><span class="line">    PPPOEDiscoveryHdr *pppoedh;</span><br><span class="line"></span><br><span class="line">    GREHdr *greh;</span><br><span class="line"></span><br><span class="line">    VLANHdr *vlanh[<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ptr to the payload of the packet</span></span><br><span class="line"><span class="comment">     * with it's length. */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> *payload;</span><br><span class="line">    <span class="keyword">uint16_t</span> payload_len;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* IPS action to take */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> action;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint8_t</span> pkt_src;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* storage: set to pointer to heap and extended via allocation if necessary */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> pktlen;</span><br><span class="line">    <span class="keyword">uint8_t</span> *ext_pkt;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Incoming interface */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">LiveDevice_</span> *<span class="title">livedev</span>;</span></span><br><span class="line"></span><br><span class="line">    PacketAlerts alerts;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Host_</span> *<span class="title">host_src</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Host_</span> *<span class="title">host_dst</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** packet number in the pcap file, matches wireshark */</span></span><br><span class="line">    <span class="keyword">uint64_t</span> pcap_cnt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* engine events */</span></span><br><span class="line">    PacketEngineEvents events;</span><br><span class="line"></span><br><span class="line">    AppLayerDecoderEvents *app_layer_events;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* double linked list ptrs */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span> *<span class="title">next</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span> *<span class="title">prev</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** data linktype in host order */</span></span><br><span class="line">    <span class="keyword">int</span> datalink;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* tunnel/encapsulation handling */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Packet_</span> *<span class="title">root</span>;</span> <span class="comment">/* in case of tunnel this is a ptr</span></span><br><span class="line"><span class="comment">                           * to the 'real' packet, the one we</span></span><br><span class="line"><span class="comment">                           * need to set the verdict on --</span></span><br><span class="line"><span class="comment">                           * It should always point to the lowest</span></span><br><span class="line"><span class="comment">                           * packet in a encapsulated packet */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** mutex to protect access to:</span></span><br><span class="line"><span class="comment">     *  - tunnel_rtv_cnt</span></span><br><span class="line"><span class="comment">     *  - tunnel_tpr_cnt</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    SCMutex tunnel_mutex;</span><br><span class="line">    <span class="comment">/* ready to set verdict counter, only set in root */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> tunnel_rtv_cnt;</span><br><span class="line">    <span class="comment">/* tunnel packet ref count */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> tunnel_tpr_cnt;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** tenant id for this packet, if any. If 0 then no tenant was assigned. */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> tenant_id;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The Packet pool from which this packet was allocated. Used when returning</span></span><br><span class="line"><span class="comment">     * the packet to its owner's stack. If NULL, then allocated with malloc.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">PktPool_</span> *<span class="title">pool</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> PROFILING</span></span><br><span class="line">    PktProfiling *profile;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> __SC_CUDA_SUPPORT__</span></span><br><span class="line">    CudaPacketVars cuda_pkt_vars;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> HAVE_NAPATECH</span></span><br><span class="line">    NapatechPacketVars ntpv;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">&#125;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> HAVE_MPIPE</span></span><br><span class="line">    <span class="comment">/* mPIPE requires packet buffers to be aligned to 128 byte boundaries. */</span></span><br><span class="line">    __attribute__((aligned(<span class="number">128</span>)))</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">Packet;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>src</li>
+<li>dst<br>src和dst保存了三层地址的地址族类型和地址数据。</li>
+<li>sp、dp<br>sp和dp保存了四层端口号。</li>
+<li>type、code<br>type和code保存了icmpv4协议的type和code。其中type和sp共用一个联合体，code和dp共用一个联合体。</li>
+<li>proto<br>三层数据包载荷的协议类型。一般来说是一个四层协议类型，但如果是一个隧道包那这里会是隧道内层数据包的类型，就不是四层协议类型了。</li>
+<li>recursion_level<br>指示了当前Packet经历了几次隧道封装。普通数据包这个值是0.</li>
+<li>vlan_id<br>长度为2的数组，存储了vlan的id，允许vlan嵌套，数组中的两项分别代表该嵌套层的vlan id。</li>
+<li>vlan_idx<br>标记了当前的vlan嵌套层数。最多2层。</li>
+<li>flowflags<br>标记了当前packet与flow相关的一些标识。<ul>
+<li>FLOW_PKT_TOSERVER</li>
+<li>FLOW_PKT_TOCLIENT</li>
+<li>FLOW_PKT_ESTABLISHED</li>
+<li>FLOW_PKT_TOSERVER_IPONLY_SET</li>
+<li>FLOW_PKT_TOCLIENT_IPONLY_SET</li>
+<li>FLOW_PKT_TOSERVER_FIRST</li>
+<li>FLOW_PKT_TOCLIENT_FIRST</li>
+</ul>
+</li>
+<li>flags<br>标识了当前Packet的flag，后面列举了各个flag。</li>
+<li>flow<br>关联的flow。</li>
+<li>flow_hash<br>数据包匹配相应的flow时使用的hash值，tcp/udp/sctp/icmp会设定该项。使用源目的地址、源目的端口、协议号、隧道递归值、vlan_id数组、系统初始化随机数计算得来。</li>
+<li>ts<br>记录了数据包的时间。</li>
+<li>nflog_v</li>
+<li>nfq_v</li>
+<li>ipfw_v</li>
+<li>afp_v</li>
+<li>mpipe_v</li>
+<li>netmap_v</li>
+<li>pcap_v<br>上面几个用于记录收包阶段时各个收包模块特有的数据。</li>
+<li>ReleasePacket<br>函数指针，当数据包需要被释放时调用。可能是释放回原线程的PktPool中，也可能是直接释放内存。</li>
+<li>BypassPacketsFlow<br>TODO</li>
+<li>pktvar<br>TODO</li>
+<li>ethh<br>二层以太网包头指针。</li>
+<li>level3_comp_csum</li>
+<li>level4_comp_csum<br>TODO</li>
+<li>ip4h<br>三层ipv4包头指针。</li>
+<li>ip6h<br>三层ipv6包头指针。</li>
+<li>ip4vars<br>保存了ipv4的可选项信息，如果存在可选项则写入该成员。<ul>
+<li>opt_cnt<br>保存了可选项的数量。</li>
+<li>opts_set<br>保存了有哪些可选项的标记。以<code>IPV4_OPT_FLAG_</code>开头的一组枚举型标识。</li>
+</ul>
+</li>
+<li>ip6vars</li>
+<li>ip6eh<br>这两个成员组成了一个结构体，这个结构体与ip4vars组成联合体，可以看出是ipv6的扩展选项，目前不关注。</li>
+<li>tcpvars</li>
+<li>icmpv4vars</li>
+<li>icmpv6vars<br>四层协议的扩展项。</li>
+<li>tcph<br>四层tcp协议头。</li>
+<li>udph<br>四层udp协议头。</li>
+<li>sctph<br>四层sctp协议头。</li>
+<li>icmpv4h<br>四层icmpV4协议头。</li>
+<li>icmpv6h<br>四层icmpV6协议头。</li>
+<li>ppph<br>二层ppp协议头。上层支持ipv4与ipv6协议。</li>
+<li>pppoesh<br>pppoe会话协议头。位于二层以太网之上，内部封装支持ipv4和ipv6。</li>
+<li>pppoedh<br>pppoe发现协议头。位于二层以太网之上。</li>
+<li>greh<br>gre封装协议头。位于三层ipv4之上，内部封装支持的比较多。</li>
+<li>vlanh<br>长度为2的数组，vlan头指针，与上面的vlan_idx组合，与vlan_id数组对应。</li>
+<li>payload<br>四层数据包的载荷，比如tcp或udp协议内的载荷。</li>
+<li>payload_len<br>四层数据包的载荷长度。</li>
+<li>action<br>IPS模式下，标识了要对这个数据包做的处理动作。动作定义在<code>action-globals.h</code>中。</li>
+<li>pkt_src<br>标识数据包的来源。比如PKT_SRC_WIRE表示直接收到的包，PKT_SRC_DECODER_GRE表示是由GRE解封装得到的伪造数据包。</li>
+<li>pktlen<br>收取的数据包字节长度</li>
+<li>ext_pkt<br>这个成员有一点特殊。Packet结构体在创建并分配内存时预分配了更多的default_packet_size字节的内存，也就是说当收取的数据包长度不大于default_packet_size时可以使用Packet结构体后的内存空间用以拷贝存储数据包数据。但是当数据包长度超出了default_packet_size时，将分配一块MAX_PAYLOAD_SIZE大小的内存块，地址赋值给ext_pkt成员，用以拷贝存储数据包数据，当数据包内存释放或归还到池子后重用时ext_pkt指向的内存将释放。另外如果数据包是使用零拷贝映射的，那么ext_pkt成员用于指向数据包内存地址，这时该指向的内存不能由用户释放。</li>
+<li>livedev<br>指向数据包来源的一个LiveDevice结构。</li>
+<li>alerts<br>TODO</li>
+<li>host_src</li>
+<li>host_dst<br>TODO</li>
+<li>pcap_cnt<br>pcap文件中的数据包序号。</li>
+<li>events<br>记录解码、分片重组、和stream时的event。event类型记录在<code>decode-events.h</code>中。<ul>
+<li>cnt<br>当前记录了的event的数量。</li>
+<li>events<br>PACKET_ENGINE_EVENT_MAX长度的数组，顺序记录event</li>
+</ul>
+</li>
+<li>app_layer_events<br>TODO</li>
+<li>next</li>
+<li>prev<br>next和prev两个成员可以将Packet链接起来，PktPool和PacketQueue结构都有使用。</li>
+<li>datalink<br>标识了收包设备的二层类型。决定了收取数据包首部的header结构类型。</li>
+<li>root<br>如果一个数据包是隧道数据包或封装数据包，解封装后会生成一个新的伪造数据包进入后续模块处理，这时新的伪造数据包的root成员会设置为指向最原始的那个数据包，也就是说如果是多层封装，那么后续的解封装后的伪造数据包root成员们都会指向最底层的那一个原始数据包。</li>
+<li>tunnel_mutex<br>锁，用于保护另外两个成员tunnel_rtv_cnt和tunnel_tpr_cnt的并发访问。</li>
+<li>tunnel_rtv_cnt<br>标识这个数据包做为其他数据包的root时，生成的新伪造数据包处理完成被回收(retrieve)的个数。只增不减。</li>
+<li>tunnel_tpr_cnt<br>标识这个数据包作为其他数据包的root被引用的次数，与root和tunnel_rtv_cnt配置实用。只增不减。</li>
+<li>tenant_id<br>TODO</li>
+<li>pool<br>这个数据包所属的PktPool，在释放时会返回挂载到这个池子中。</li>
+<li>profile</li>
+<li>cuda_pkt_vars</li>
+<li>ntpv<br>TODO</li>
+</ul>
+<figure class="highlight c"><figcaption><span>Packet中flags成员可能的选项</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*Packet Flags*/</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_NOPACKET_INSPECTION         (1)         <span class="comment">/**&lt; Flag to indicate that packet header or contents should not be inspected*/</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_NOPAYLOAD_INSPECTION        (1&lt;&lt;2)      <span class="comment">/**&lt; Flag to indicate that packet contents should not be inspected*/</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_ALLOC                       (1&lt;&lt;3)      <span class="comment">/**&lt; Packet was alloc'd this run, needs to be freed */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_HAS_TAG                     (1&lt;&lt;4)      <span class="comment">/**&lt; Packet has matched a tag */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_STREAM_ADD                  (1&lt;&lt;5)      <span class="comment">/**&lt; Packet payload was added to reassembled stream */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_STREAM_EST                  (1&lt;&lt;6)      <span class="comment">/**&lt; Packet is part of establised stream */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_STREAM_EOF                  (1&lt;&lt;7)      <span class="comment">/**&lt; Stream is in eof state */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_HAS_FLOW                    (1&lt;&lt;8)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_PSEUDO_STREAM_END           (1&lt;&lt;9)      <span class="comment">/**&lt; Pseudo packet to end the stream */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_STREAM_MODIFIED             (1&lt;&lt;10)     <span class="comment">/**&lt; Packet is modified by the stream engine, we need to recalc the csum and reinject/replace */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_MARK_MODIFIED               (1&lt;&lt;11)     <span class="comment">/**&lt; Packet mark is modified */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_STREAM_NOPCAPLOG            (1&lt;&lt;12)     <span class="comment">/**&lt; Exclude packet from pcap logging as it's part of a stream that has reassembly depth reached. */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_TUNNEL                      (1&lt;&lt;13)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_TUNNEL_VERDICTED            (1&lt;&lt;14)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_IGNORE_CHECKSUM             (1&lt;&lt;15)     <span class="comment">/**&lt; Packet checksum is not computed (TX packet for example) */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_ZERO_COPY                   (1&lt;&lt;16)     <span class="comment">/**&lt; Packet comes from zero copy (ext_pkt must not be freed) */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_HOST_SRC_LOOKED_UP          (1&lt;&lt;17)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_HOST_DST_LOOKED_UP          (1&lt;&lt;18)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_IS_FRAGMENT                 (1&lt;&lt;19)     <span class="comment">/**&lt; Packet is a fragment */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_IS_INVALID                  (1&lt;&lt;20)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_PROFILE                     (1&lt;&lt;21)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/** indication by decoder that it feels the packet should be handled by</span></span><br><span class="line"><span class="comment"> *  flow engine: Packet::flow_hash will be set */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_WANTS_FLOW                  (1&lt;&lt;22)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/** protocol detection done */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_PROTO_DETECT_TS_DONE        (1&lt;&lt;23)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_PROTO_DETECT_TC_DONE        (1&lt;&lt;24)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_REBUILT_FRAGMENT            (1&lt;&lt;25)     <span class="comment">/**&lt; Packet is rebuilt from</span></span></span><br><span class="line"><span class="meta"><span class="comment">                                                     * fragments. */</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_DETECT_HAS_STREAMDATA       (1&lt;&lt;26)     <span class="comment">/**&lt; Set by Detect() if raw stream data is available. */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PKT_PSEUDO_DETECTLOG_FLUSH      (1&lt;&lt;27)     <span class="comment">/**&lt; Detect/log flush for protocol upgrade */</span></span></span><br></pre></td></tr></table></figure>
+<h2 id="收包"><a href="#收包" class="headerlink" title="收包"></a>收包</h2><p>以pcap和af-packet实时嗅探为例，收包过程对Packet的填充如下。</p>
+<ul>
+<li>取得一个空的Packet实例。从线程专有的PktPool中取得，池子空时新分配内存，这个新分配的Packet内存在使用结束后将直接释放。</li>
+<li>设置Packet的pkt_src成员为PKT_SRC_WIRE，表示由设备线路获取。</li>
+<li>设置Packet的ts成员记录时间。</li>
+<li>设置Packet的datalink成员记录二层链路层类型。</li>
+<li>设置Packet的livedev成员，指向收包设备LiveDevice实例。</li>
+<li>如果使用的收包设备接口在接收到的数据包头部支持提取vlan信息，则设置Packet的vlan_id、vlan_idx成员。</li>
+<li>设置Packet的pktlen成员，记录收取数据包长度。</li>
+<li>设置Packet的数据包原始数据。<ul>
+<li>如果是零拷贝方式，设置Packet的ext_pkt成员指向映射内存的数据包头地址，同时设置flags成员增加标识PKT_ZERO_COPY。</li>
+<li>如果需要拷贝数据，根据情况选择是将数据拷贝到Packet内存尾部还是分配内存给ext_pkt成员用以拷贝数据。</li>
+</ul>
+</li>
+<li>根据情况选择是否为Packet的flags成员设定标识PKT_IGNORE_CHECKSUM。如果符合忽略数据包校验的条件，会置PKT_IGNORE_CHECKSUM标记。比如配置文件中的checksum-checks设置为no，或设置auto的同时统计了足够比例的校验失败数据包。</li>
+<li>如果收包模块一段时间没有收到数据包，并且detect engine需要reload时，收包模块会调用TmThreadsCaptureInjectPacket函数，创建一个伪造数据包并将flasg成员增加PKT_PSEUDO_STREAM_END标记，数据包将交付给后续模块处理，这个数据包会流经整个引擎并使detect engine完成reload过程。</li>
+<li>收包模块生成的Packet由TmThreadsSlotProcessPkt函数交由后续模块处理。参考之前的<a href="/2018/03/22/suricata-4-0-3-thread-model/#%E5%8F%82%E6%95%B0%E2%80%9Dpktacqloop%E2%80%9D">线程模型介绍</a></li>
+</ul>
+<h2 id="解码"><a href="#解码" class="headerlink" title="解码"></a>解码</h2><p>以pcap和af-packet实时嗅探为例，解码过程对Packet的填充如下。</p>
+<ul>
+<li>检查Packet中PKT_PSEUDO_STREAM_END标记，如果存在则直接完成decode过程进入下一阶段。</li>
+<li>判断Packet中datalink，选择不同的解码函数，各个链路类型的解码函数对于不同的decode模块是通用的，也就是说各个receive模块对应了自己的decode模块，但是这个decode模块是很轻的，因为主要的解码函数是通用的。<br>pcap和af-packet支持的二层链路类型相同，以下。<ul>
+<li>LINKTYPE_LINUX_SLL</li>
+<li>LINKTYPE_ETHERNET</li>
+<li>LINKTYPE_PPP</li>
+<li>LINKTYPE_RAW</li>
+<li>LINKTYPE_NULL</li>
+</ul>
+</li>
+</ul>
+<p>下面记录部分常用协议的解码。</p>
+<h3 id="链路层解码"><a href="#链路层解码" class="headerlink" title="链路层解码"></a>链路层解码</h3><h4 id="DecodeEthernet"><a href="#DecodeEthernet" class="headerlink" title="DecodeEthernet"></a>DecodeEthernet</h4><ul>
+<li>设置Packet成员ethh，类型为EthernetHdr指针。</li>
+<li>判断以太网头中的类型字段，选择上层数据解码函数，支持以下。<ul>
+<li>ETHERNET_TYPE_IP</li>
+<li>ETHERNET_TYPE_IPV6</li>
+<li>ETHERNET_TYPE_PPPOE_SESS</li>
+<li>ETHERNET_TYPE_PPPOE_DISC</li>
+<li>ETHERNET_TYPE_VLAN</li>
+<li>ETHERNET_TYPE_8021QINQ</li>
+<li>ETHERNET_TYPE_MPLS_UNICAST</li>
+<li>ETHERNET_TYPE_MPLS_MULTICAST</li>
+<li>ETHERNET_TYPE_DCE</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>以太网包头结构</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">EthernetHdr_</span> &#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span> eth_dst[<span class="number">6</span>];</span><br><span class="line">    <span class="keyword">uint8_t</span> eth_src[<span class="number">6</span>];</span><br><span class="line">    <span class="keyword">uint16_t</span> eth_type;</span><br><span class="line">&#125; __attribute__((__packed__)) EthernetHdr;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/ethernet.png" alt="以太网帧格式"></p>
+<h4 id="DecodeSll"><a href="#DecodeSll" class="headerlink" title="DecodeSll"></a>DecodeSll</h4><ul>
+<li>通过头部内存SllHdr结构选择上层数据解码函数，支持以下。<ul>
+<li>ETHERNET_TYPE_IP</li>
+<li>ETHERNET_TYPE_IPV6</li>
+<li>ETHERNET_TYPE_VLAN</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>libpcap可能收取到此种链路层头的数据包，应该是cooked数据包。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">SllHdr_</span> &#123;</span></span><br><span class="line">    <span class="keyword">uint16_t</span> sll_pkttype;      <span class="comment">/* packet type */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> sll_hatype;       <span class="comment">/* link-layer address type */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> sll_halen;        <span class="comment">/* link-layer address length */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> sll_addr[<span class="number">8</span>];       <span class="comment">/* link-layer address */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> sll_protocol;     <span class="comment">/* protocol */</span></span><br><span class="line">&#125; __attribute__((__packed__)) SllHdr;</span><br></pre></td></tr></table></figure>
+<h4 id="DecodePPP"><a href="#DecodePPP" class="headerlink" title="DecodePPP"></a>DecodePPP</h4><ul>
+<li>设置Packet成员ppph，类型为PPPHdr指针。</li>
+<li>判断头中协议字段，选择上层解码函数，支持以下。<ul>
+<li>PPP_VJ_UCOMP<br>ipv4解码</li>
+<li>PPP_IP<br>ipv4解码</li>
+<li>PPP_IPV6<br>ipv6解码</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>PPP包头结构</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/** PPP Packet header */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PPPHdr_</span> &#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span> address;</span><br><span class="line">    <span class="keyword">uint8_t</span> control;</span><br><span class="line">    <span class="keyword">uint16_t</span> protocol;</span><br><span class="line">&#125; __attribute__((__packed__)) PPPHdr;</span><br></pre></td></tr></table></figure>
+<h4 id="DecodeRaw"><a href="#DecodeRaw" class="headerlink" title="DecodeRaw"></a>DecodeRaw</h4><p>这里数据包直接就是三层数据包，该函数只支持ipv4与ipv6，通过判断头部版本号区分。</p>
+<h4 id="DecodeNull"><a href="#DecodeNull" class="headerlink" title="DecodeNull"></a>DecodeNull</h4><p>二层链路类型为LINKTYPE_NULL时使用此解码函数，数据包首部4字节代表了上层数据的协议族，比如PF_INET、PF_INET6，这里字节序使用的是主机序，比如x86为小端序。这里只支持ipv4与ipv6。</p>
+<h4 id="DecodeVLAN"><a href="#DecodeVLAN" class="headerlink" title="DecodeVLAN"></a>DecodeVLAN</h4><ul>
+<li>设置Packet成员vlanh，根据vlan_idx选择vlanh数组中的项。</li>
+<li>设置Packet成员vlan_id，根据vlan_idx选择vlan_id数组中的项。</li>
+<li>加一Packet成员vlan_idx，标记当前vlan层数。suricata中只允许两层。</li>
+<li>判断vlan头中协议类型字段，选择上层解码函数，支持以下。<ul>
+<li>ETHERNET_TYPE_IP</li>
+<li>ETHERNET_TYPE_IPV6</li>
+<li>ETHERNET_TYPE_PPPOE_SESS</li>
+<li>ETHERNET_TYPE_PPPOE_DISC</li>
+<li>ETHERNET_TYPE_VLAN</li>
+<li>ETHERNET_TYPE_8021AD</li>
+<li>ETHERNET_TYPE_8021AH</li>
+</ul>
+</li>
+</ul>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/vlan.png" alt="vlan帧格式"></p>
+<h3 id="网络层解码"><a href="#网络层解码" class="headerlink" title="网络层解码"></a>网络层解码</h3><h4 id="DecodeIPV4"><a href="#DecodeIPV4" class="headerlink" title="DecodeIPV4"></a>DecodeIPV4</h4><ul>
+<li>设置Packet成员ip4h。类型为IPV4Hdr指针。</li>
+<li>设置Packet成员src、dst，写入地址族类型及地址。</li>
+<li>设置Packet成员ip4vars（如果存在ipv4协议可选项的话）。</li>
+<li>设置Packet成员proto，记录ipv4载荷协议类型。可能是tcp、udp这类传输层协议，也可能是GRE这类隧道协议。</li>
+<li>如果这是一个IP分片，进入分片重组流程，增加flags标记PKT_IS_FRAGMENT，直接返回不再继续进行载荷解码。（如果这里重组完成了一个新的伪造数据包，则将数据包置入模块的slot_pre_pq队列中。）</li>
+<li>如果不是一个IP分片，判断载荷协议类型，选择上层解码函数，支持以下。<ul>
+<li>IPPROTO_TCP</li>
+<li>IPPROTO_UDP</li>
+<li>IPPROTO_ICMP</li>
+<li>IPPROTO_GRE</li>
+<li>IPPROTO_SCTP</li>
+<li>IPPROTO_IPV6</li>
+<li>IPPROTO_IP<br>看注释这里与ppp协议有关，载荷按照tcp解码。不了解ppp协议，不关注这里。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>ipv4头结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">IPV4Hdr_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span> ip_verhl;     <span class="comment">/**&lt; version &amp; header length */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> ip_tos;       <span class="comment">/**&lt; type of service */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> ip_len;      <span class="comment">/**&lt; length */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> ip_id;       <span class="comment">/**&lt; id */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> ip_off;      <span class="comment">/**&lt; frag offset */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> ip_ttl;       <span class="comment">/**&lt; time to live */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> ip_proto;     <span class="comment">/**&lt; protocol (tcp, udp, etc) */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> ip_csum;     <span class="comment">/**&lt; checksum */</span></span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">            <span class="class"><span class="keyword">struct</span> <span class="title">in_addr</span> <span class="title">ip_src</span>;</span><span class="comment">/**&lt; source address */</span></span><br><span class="line">            <span class="class"><span class="keyword">struct</span> <span class="title">in_addr</span> <span class="title">ip_dst</span>;</span><span class="comment">/**&lt; destination address */</span></span><br><span class="line">        &#125; ip4_un1;</span><br><span class="line">        <span class="keyword">uint16_t</span> ip_addrs[<span class="number">4</span>];</span><br><span class="line">    &#125; ip4_hdrun1;</span><br><span class="line">&#125; __attribute__((__packed__)) IPV4Hdr;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/ipv4.png" alt="ipv4头格式"></p>
+<h4 id="DecodeIPV6"><a href="#DecodeIPV6" class="headerlink" title="DecodeIPV6"></a>DecodeIPV6</h4><p>IPv6协议不够熟悉，而且对这方面需求不大，暂时不做分析。</p>
+<h3 id="传输层解码"><a href="#传输层解码" class="headerlink" title="传输层解码"></a>传输层解码</h3><h4 id="DecodeTCP"><a href="#DecodeTCP" class="headerlink" title="DecodeTCP"></a>DecodeTCP</h4><ul>
+<li>设置Packet成员tcph。类型为TCPHdr指针。</li>
+<li>设置Packet成员tcpvars（如果存在tcp可选项的话）。</li>
+<li>设置Packet成员sp、dp，tcp源端口目的端口。</li>
+<li>再次设置Packet成员proto为IPPROTO_TCP。</li>
+<li>设置Packet成员payload，指向tcp载荷数据。</li>
+<li>设置Packet成员payload_len，tcp载荷数据长度。</li>
+<li>设置Packet成员flags增加标记PKT_WANTS_FLOW。</li>
+<li>设置Packet成员flow_hash。</li>
+</ul>
+<figure class="highlight c"><figcaption><span>tcp头结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">TCPHdr_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="keyword">uint16_t</span> th_sport;  <span class="comment">/**&lt; source port */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> th_dport;  <span class="comment">/**&lt; destination port */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> th_seq;    <span class="comment">/**&lt; sequence number */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> th_ack;    <span class="comment">/**&lt; acknowledgement number */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> th_offx2;   <span class="comment">/**&lt; offset and reserved */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> th_flags;   <span class="comment">/**&lt; pkt flags */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> th_win;    <span class="comment">/**&lt; pkt window */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> th_sum;    <span class="comment">/**&lt; checksum */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> th_urp;    <span class="comment">/**&lt; urgent pointer */</span></span><br><span class="line">&#125; __attribute__((__packed__)) TCPHdr;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/tcp.png" alt="tcp头格式"></p>
+<h4 id="DecodeUDP"><a href="#DecodeUDP" class="headerlink" title="DecodeUDP"></a>DecodeUDP</h4><ul>
+<li>设置Packet成员udph，类型为UDPHdr指针。</li>
+<li>设置Packet成员sp、dp，udp源端口目的端口。</li>
+<li>设置Packet成员payload，指向udp载荷数据。</li>
+<li>设置Packet成员payload_len，udp载荷数据长度。</li>
+<li>再次设置Packet成员proto为IPPROTO_UDP。</li>
+<li>这里会判断是否是Teredo隧道包，我暂时不关注Teredo包的处理。</li>
+<li>如果非Teredo协议数据包<ul>
+<li>设置Packet成员flags增加标记PKT_WANTS_FLOW。</li>
+<li>设置Packet成员flow_hash。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight c"><figcaption><span>udp头结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* UDP header structure */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">UDPHdr_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="keyword">uint16_t</span> uh_sport;  <span class="comment">/* source port */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> uh_dport;  <span class="comment">/* destination port */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> uh_len;    <span class="comment">/* length */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> uh_sum;    <span class="comment">/* checksum */</span></span><br><span class="line">&#125; __attribute__((__packed__)) UDPHdr;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/udp.png" alt="udp头格式"></p>
+<h4 id="DecodeICMPV4"><a href="#DecodeICMPV4" class="headerlink" title="DecodeICMPV4"></a>DecodeICMPV4</h4><ul>
+<li>设置Packet成员icmpv4h。类型为ICMPV4Hdr指针。</li>
+<li>再次设置Packet成员proto为IPPROTO_ICMP。</li>
+<li>设置Packet成员type为icmpv4h中的type。</li>
+<li>设置Packet成员code为icmpv4h中的code。</li>
+<li>设置Packet成员payload，指向icmpv4载荷。</li>
+<li>设置Packet成员payload_len，icmpv4载荷长度。</li>
+<li>根据type类型设置Packet成员icmpv4vars。</li>
+</ul>
+<figure class="highlight c"><figcaption><span>icmpv4结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* ICMPv4 header structure */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ICMPV4Hdr_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span>  type;</span><br><span class="line">    <span class="keyword">uint8_t</span>  code;</span><br><span class="line">    <span class="keyword">uint16_t</span> checksum;</span><br><span class="line">&#125; __attribute__((__packed__)) ICMPV4Hdr;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/icmp.png" alt="icmp头格式"></p>
+<h2 id="隧道数据包"><a href="#隧道数据包" class="headerlink" title="隧道数据包"></a>隧道数据包</h2><p>隧道数据包处理的核心逻辑就是，对封装的载荷创建一个新的Packet结构并合理填充，将其放入模块的slot_pre_pq队列。原始数据包标记为不需要继续分析，然后结束原始数据包的解码。下面记录一些填充细节。</p>
+<h3 id="GRE"><a href="#GRE" class="headerlink" title="GRE"></a>GRE</h3><p>通用路由封装协议是一种隧道协议，可以用于将网络层数据报封装起来，使这些被封装的数据报能在IPv4网络上传输。</p>
+<h4 id="DecodeGRE"><a href="#DecodeGRE" class="headerlink" title="DecodeGRE"></a>DecodeGRE</h4><ul>
+<li>设置Packet成员greh，类型为GREHdr指针。</li>
+<li>判断GRE版本号，做一系列校验。同时根据各个选项，确定gre头占用的确定长度。</li>
+<li>判断GRE内部承载的协议类型，调用PacketTunnelPktSetup函数，这个函数将返回一个新的Packet结构，我们可以命名为tp（tunnel packet）。</li>
+<li>如果返回的tp不为NULL，设置tp的成员pkt_src为PKT_SRC_DECODER_GRE，表示这个数据包是由gre隧道解封装得来的，是一个新建的伪造数据包。</li>
+<li>将tp放入模块的slot_pre_pq队列，入队列后的处理逻辑参考之前的<a href="/2018/03/22/suricata-4-0-3-thread-model/#%E5%8F%82%E6%95%B0%E2%80%9Dpktacqloop%E2%80%9D">线程模型介绍</a></li>
+</ul>
+<p>针对隧道数据包的处理都经由PacketTunnelPktSetup函数，这里记录该函数的主要逻辑。原数据包我们命名为parent，新数据包延续前文命名为tp。</p>
+<ul>
+<li>取得一个新的空Packet，tp。</li>
+<li>将parent中的载荷数据拷贝到tp中，同时设置tp的成员pktlen。</li>
+<li>设置tp成员recursion_level为parent中的同名成员加一。</li>
+<li>设置tp成员ts与parent中的值一致。</li>
+<li>设置tp成员datalink为DLT_RAW，这表示载荷中没有链路层头，直接就是网络层头。</li>
+<li>设置tp成员tenant_id与parent中的值一致。</li>
+<li>设置tp成员root，设置为最底层的root。也就是说如果父数据包root不为NULL则设置为父的root，否则设置为父数据包。这里另外说一句，root指向的Packet的tunnel_tpr_cnt将加一，用以标识有多少个数据包引用了它。</li>
+<li>设置tp成员flags增加标记PKT_TUNNEL。</li>
+<li>对tp调用函数DecodeTunnel。</li>
+<li>设置parent成员flags增加标记PKT_TUNNEL。</li>
+<li>设置root中的tunnel_tpr_cnt加一，用以记录root数据包被引用的次数。</li>
+<li>设置parent成员flags增加标记PKT_NOPAYLOAD_INSPECTION。</li>
+<li>返回tp。</li>
+</ul>
+<p>函数DecodeTunnel很简单，根据传入的DecodeTunnelProto类型的参数proto，选择具体的解码函数继续填充新建的伪造数据包tp。比如参数值DECODE_TUNNEL_IPV4对应的解码函数为DecodeIPV4。这里支持的参数如下。</p>
+<ul>
+<li>DECODE_TUNNEL_ETHERNET,</li>
+<li>DECODE_TUNNEL_ERSPAN</li>
+<li>DECODE_TUNNEL_VLAN</li>
+<li>DECODE_TUNNEL_IPV4</li>
+<li>DECODE_TUNNEL_IPV6</li>
+<li>DECODE_TUNNEL_PPP</li>
+</ul>
+<figure class="highlight c"><figcaption><span>GREHdr结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">GREHdr_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span> flags; <span class="comment">/**&lt; GRE packet flags */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> version; <span class="comment">/**&lt; GRE version */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> ether_type; <span class="comment">/**&lt; ether type of the encapsulated traffic */</span></span><br><span class="line"></span><br><span class="line">&#125; __attribute__((__packed__)) GREHdr;</span><br></pre></td></tr></table></figure>
+<p><img src="http://blog-image.hyuuhit.com/2018/04/suricata-receive-decode/gre.jpg" alt="gre头格式"></p>
+<h3 id="IPv6-over-IPv4"><a href="#IPv6-over-IPv4" class="headerlink" title="IPv6 over IPv4"></a>IPv6 over IPv4</h3><p>IPv6 over IPv4的解码逻辑与gre解码逻辑几乎一样，同样都由调用PacketTunnelPktSetup生成解封装后的数据包然后放入模块的slot_pre_pq队列，区别只在于两层间少了解码gre头这一个步骤。</p>
+<p>其他隧道模式同理。</p>
+<h2 id="分片数据包"><a href="#分片数据包" class="headerlink" title="分片数据包"></a>分片数据包</h2><p>这里仅关注IPv4的分片处理。IPv6不做关注。</p>
+<p>分片数据包处理围绕tracker进行，一个tracker保存了该ip数据包的所有分片（frag），使用中的tracker保存在一个hash table中，hash冲突使用链表解决，在这里链表被称为行，空闲的tracker都保存在一个队列中。frag拷贝了Packet中的数据，空闲的frag保存在一个池子中，这个池子也是全局的。tracker和frag的操作都可能多线程并发，因此都有锁保护。多线程锁的使用和frag的数据拷贝可能影响suricata性能。</p>
+<h3 id="分片相关初始化"><a href="#分片相关初始化" class="headerlink" title="分片相关初始化"></a>分片相关初始化</h3><p>main -&gt; PostConfLoadedSetup -&gt; PreRunInit -&gt; DefragInit。这里是分片相关的初始化运行位置。</p>
+<ul>
+<li>依据配置文件中defrag.host-config段，以ip网段为key，以timeout为value，插入一个基数树种，树根为静态全局变量defrag_tree。</li>
+<li>defrag_context静态全局变量初始化。<ul>
+<li>frag_pool。存储了空闲frag的池子，池子数量上限为配置文件项defrag.max-frags（默认65534），池子预先创建了数量上限一半的frag内存。</li>
+<li>frag_pool_lock。并发访问用的保护锁。</li>
+<li>timeout。tracker的过期时间，配置文件项defrag.timeout（默认60秒）。</li>
+</ul>
+</li>
+<li>default_timeout静态环境变量值设置为上面的timeout，用于host的默认timeout。</li>
+<li>defrag_config静态全局变量初始化。<ul>
+<li>hash_rand。随机数。</li>
+<li>hash_size。tracker使用的hash table的行数。配置文件defrag.hash-size，默认4096。</li>
+<li>memcap。tracker使用的内存上限。配置文件defrag.memcap，默认16M。</li>
+<li>prealloc。tracker预分配数量。配置文件defrag.trackers，默认1000。</li>
+</ul>
+</li>
+<li>defragtracker_hash。tracker的全局hash table。分配内存并置0，初始化每行的锁。</li>
+<li>defragtracker_counter。使用中的tracker计数。</li>
+<li>defrag_memuse。tracker和其hash table所使用的内存总量。跟随hash table及tracker的预创建而变动。</li>
+<li>defragtracker_prune_idx。从使用中的tracker中选出一个清空并再次使用时，使用该值选择遍历开始的hash table行号。</li>
+<li>defragtracker_spare_q。空闲tracker队列。配置文件项defrag.prealloc为真时将预分配defrag_config.prealloc个数的tracker到这个空闲队列。</li>
+</ul>
+<h3 id="分片数据包处理"><a href="#分片数据包处理" class="headerlink" title="分片数据包处理"></a>分片数据包处理</h3><ul>
+<li>在DecodeIPV4解码中，会检查ipv4头的offset和mf(more fragment)标记</li>
+<li>如果是分片数据包，调用函数Defrag，这个函数将返回一个新的Packet结构，我们可以命名为rp（reassembly packet）。</li>
+<li>如果rp不为NULL，则放入模块的slot_pre_pq队列。</li>
+<li>原始数据包增加标记PKT_IS_FRAGMENT。</li>
+</ul>
+<p>分片数据包的处理逻辑集中在函数Defrag内，这个函数是ipv4与ipv6通用的。</p>
+<ul>
+<li>调用DefragGetTracker获得数据包的tracker，如果tracker为NULL则返回NULL。</li>
+<li>调用DefragInsertFrag插入数据包到tracker中，如果在加入此数据包后分片重组成功则函数返回rp，既重组完成的Packet。如果返回NULL则说明重组没有完成。</li>
+<li>调用DefragTrackerRelease释放tracker。</li>
+</ul>
+<h4 id="DefragGetTracker"><a href="#DefragGetTracker" class="headerlink" title="DefragGetTracker"></a>DefragGetTracker</h4><p>tracker有一个空闲链表，在使用的tracker放在一个hash table中，table中每一行对应一个hash值，Packet依次比较这一行中的tracker，匹配的tracker移动到队列头。行有锁，tracker有锁。</p>
+<p>查找一个合适的tracker时，先从hash table中取得行，对该行上锁。hash key使用Packet的源目的地址、ip包id、vlan_id、系统初始化的随机数，这5项计算得到。</p>
+<ul>
+<li>如果该行空，则尝试获取一个新tracker。<ul>
+<li>如果没能拿到新tracker，则释放行锁，返回NULL。</li>
+<li>如果拿到新tracker，则将该tracker插入行，对tracker调用DefragTrackerInit初始化数据，释放行锁，返回tracker。</li>
+</ul>
+</li>
+<li>如果该行不空，则顺序比较该行的每个tracker<ul>
+<li>如果匹配到tracker，将该tracker移动到行首，锁定该tracker，对tracker成员use_cnt加一，释放行锁，返回tracker。</li>
+<li>如果到末尾仍没有匹配到，则尝试获取新tracker。<ul>
+<li>如果没能拿到新tracker，则释放行锁，返回NULL。</li>
+<li>如果拿到新tracker，将该tracker挂载到行尾部，对tracker调用DefragTrackerInit进行初始化数据，释放行锁，返回tracker。（这里很奇怪，匹配到的活跃tracker移动到头部，新的活跃tracker却挂载到尾部，我估计是忘改了）</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>尝试获取新tracker的流程如下：</p>
+<ul>
+<li>从空闲链表中尝试获取tracker。<ul>
+<li>如果没取到，检查当前全局tracker内存用量是否达到配置限额。<ul>
+<li>内存使用未达到限额，尝试分配内存。<ul>
+<li>再次检查，如果仍未达到限额则分配内存，增加全局tracker内存用量，对tracker内存置零，初始化锁，返回tracker。如果检查达到限额则返回NULL（这里完全是吃饱了撑的）</li>
+</ul>
+</li>
+<li>尝试从在使用中的tracker中清理出一个。<ul>
+<li>从defragtracker_prune_idx所以开始遍历tracker的hash table的每一行。</li>
+<li>尝试对行上锁，如果上锁失败则尝试下一行。</li>
+<li>上锁成功后，检查是不是空行，如果是空行则释放行锁尝试下一行。</li>
+<li>尝试上锁行尾的tracker，如果上锁失败则释放行锁尝试下一行。</li>
+<li>上锁tracker成功后，检查track成员use_cnt，如果不大于零则将tracker从行上移除，释放行锁，将该tracker上的分片frag释放回池子，释放tracker锁，增加defragtracker_prune_idx值，增加的值为尝试的行数，返回tracker。</li>
+<li>如果尝试了所有行仍未成功取到tracker，则返回NULL。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>如果前面的操作有取到tracker，增加全局的tracker使用计数，上锁并返回该tracker。</li>
+</ul>
+</li>
+</ul>
+<p>DefragTrackerInit初始化tracker数据：</p>
+<ul>
+<li>设置tracker成员源地址目的地址。</li>
+<li>设置tracker成员id为ip的id。</li>
+<li>设置tracker成员af为地址族。</li>
+<li>设置tracker成员proto为ip数据包载荷的协议。</li>
+<li>设置tracker成员vlan_id数组。</li>
+<li>设置tracker成员policy，该tracker所匹配上的host-os，也就是认为这个tracker追踪的数据包归属于哪种操作系统。匹配规则来源于配置文件项host-os-policy。</li>
+<li>设置tracker成员host_timeout，该tracker的timeout值，从前文提过的defrag_tree得到，有默认值。</li>
+<li>设置tracker成员remove和seen_last都置0.</li>
+<li>初始化tracker成员frags队列。</li>
+<li>设置tracker成员use_cnt加一。</li>
+</ul>
+<h4 id="DefragInsertFrag"><a href="#DefragInsertFrag" class="headerlink" title="DefragInsertFrag"></a>DefragInsertFrag</h4><ul>
+<li>检查分片重组后长度如果超过允许的IP包最大长度，则返回NULL。</li>
+<li>更新tracker成员timeout，每次有新分片到来都会更新此项。</li>
+<li>根据tracker成员policy，检查该Packet与已经保存的前后分片的数据是否有相互覆盖，更新相关frag成员的skip项，如果本数据包数据有需要做ltrim（左端一定长度的数据无用）的，记录需要ltrim的数据。</li>
+<li>从frag池子中取出一个新的frag，如果取出NULL，则返回NULL。</li>
+<li>设置frag成员pkt，分配当前Packet数据长度的内存，如果失败返还frag并返回NULL。</li>
+<li>将Packet中去掉ltrim部分的数据拷贝到frag成员pkt中。</li>
+<li>设置frag成员len。</li>
+<li>设置frag成员hlen、offset、data_offset、data_len、ip_hdr_offset、frag_hdr_offset、more_frags。</li>
+<li>将该frag插入tracker成员frags上，这里根据frag的offset顺序排列。</li>
+<li>如果more_frag为假，设置tracker成员seen_last为一。</li>
+<li>如果tracker的seen_last是一，IPv4协议的话将调用Defrag4Reassemble尝试重组分片，这个函数返回Packet类型指针。</li>
+<li>如果上一步返回非NULL，则调用DecodeIPV4对重组数据包做解码。解码成功后对原数据包调用函数PacketDefragPktSetupParent，增加Packet成员flags标记PKT_TUNNEL和PKT_NOPAYLOAD_INSPECTION，增加成员tunnel_tpr_cnt计数。</li>
+<li>如果之前重组分片返回了Packet指针，则将其返回，否则返回的将是NULL。</li>
+</ul>
+<p>分片重组工作在函数Defrag4Reassemble中进行。</p>
+<ul>
+<li>检查有没有seen_last，既有没有接收到最后一个分片。</li>
+<li>检查分片见有没有空洞。</li>
+<li>取得一个新的Packet，这里命名为rp。以原始数据包为参考，设置rp成员，包括：<ul>
+<li>root，这个参考隧道数据包的root，逻辑一致。</li>
+<li>recursion_level，与原始数据包一致，不做增加。</li>
+<li>ts，与原始数据包一致。</li>
+<li>datalink，设置为DLT_RAW。</li>
+<li>tenant_id，与原始数据包一致。</li>
+<li>flags，增加PKT_TUNNEL标记。</li>
+<li>vlan_id，vlan_idx，与原始数据包一致。</li>
+</ul>
+</li>
+<li>如果取得rp失败，进入清空tracker错误处理流程。</li>
+<li>设置rp成员pkt_src为PKT_SRC_DEFRAG，记录其来源是分片重组。</li>
+<li>设置rp成员flags，增加PKT_REBUILT_FRAGMENT标记。</li>
+<li>按顺序将tracker上挂载的frag中的数据拷贝到rp成员ext_pkt合适的位置上。</li>
+<li>设置rp成员ip4h。ip4h中的ip_len、ip_off、ip_csum需要重新计算。</li>
+<li>设置rp成员pktlen。</li>
+<li>设置tracker成员remove置1。</li>
+<li>调用DefragTrackerFreeFrags释放tracker及其中的frag。</li>
+<li>返回rp。</li>
+</ul>
+<p>函数Defrag4Reassemble的清空tracker错误处理流程比较简单：</p>
+<ul>
+<li>tracker成员remove置1。</li>
+<li>调用函数DefragTrackerFreeFrags清空tracker中的所有frag。顺序移除所有的frag，frag的成员pkt释放内存，frag置0，将frag放回池子。</li>
+<li>如果之前已经取得了rp，将rp释放，具体是释放内存还是放回池子取决于rp的flags与释放函数。</li>
+</ul>
+<h4 id="DefragTrackerRelease"><a href="#DefragTrackerRelease" class="headerlink" title="DefragTrackerRelease"></a>DefragTrackerRelease</h4><p>这里只做了两步操作。</p>
+<ul>
+<li>对tracer的use_cnt项减一。</li>
+<li>释放tracker的锁。</li>
+</ul>
+</div><div class="tags"></div><div class="post-nav"><a class="pre" href="/2018/05/28/suricata-4-0-3-flow/">suricata 4.0.3 flow</a><a class="next" href="/2018/04/05/network-device-list/">获取网卡列表的几种方式</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://www.hyuuhit.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/suricata/">suricata</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/工具/" style="font-size: 15px;">工具</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/vmware/" style="font-size: 15px;">vmware</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/05/06/noblock-rabbitmq-c/">rabbitmq-c 非阻塞订阅</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/04/20/libyaml/">libyaml 解析配置文件</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/03/23/netns/">Linux network namespace 简单解读</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/11/af-packet-bpf/">AF_PACKET & BPF 伪造arp响应</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/04/nonblock-redis/">hiredis & libev 非阻塞模式</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/13/nwfilter/">libvirt nwfilter 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/03/libxml2/">libxml2 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/11/20/virt-install/">virt-install 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/11/08/rcu/">Linux RCU 内核同步机制</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/17/linux-kernel-timer/">Linux timer 内核软件定时器</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2019 <a href="/." rel="nofollow">属乌鸦的.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

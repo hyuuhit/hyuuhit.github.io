@@ -1,0 +1,192 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="hu yu's blog | Android | 服务端"><title>suricata 4.0.3 flow | 属乌鸦的</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+ga('create','UA-129648993-1','auto');ga('send','pageview');
+</script><script>var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = 'https://hm.baidu.com/hm.js?' + '85d80db9310fa34ab2f7d34beeff589b';
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">suricata 4.0.3 flow</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">suricata 4.0.3 flow</h1><div class="post-meta">May 28, 2018 7:11 PM<span> | </span><span class="category"><a href="/categories/suricata/">suricata</a></span></div><div class="post-content"><p>FlowWorker线程模块的处理函数为<code>FlowWorker</code>，主要包括五部分功能，分别是Flow处理、应用层协议识别、特征检测、输出、tcp segment清理。这里简单记录flow的处理。</p>
+<a id="more"></a>
+<h2 id="Flow结构体"><a href="#Flow结构体" class="headerlink" title="Flow结构体"></a>Flow结构体</h2><p>对流的处理围绕Flow这个数据结构展开，下面贴出结构体声明并介绍各个成员。</p>
+<figure class="highlight c"><figcaption><span>Flow结构体</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *  \brief Flow data structure.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  The flow is a global data structure that is created for new packets of a</span></span><br><span class="line"><span class="comment"> *  flow and then looked up for the following packets of a flow.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  Locking</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  The flow is updated/used by multiple packets at the same time. This is why</span></span><br><span class="line"><span class="comment"> *  there is a flow-mutex. It's a mutex and not a spinlock because some</span></span><br><span class="line"><span class="comment"> *  operations on the flow can be quite expensive, thus spinning would be</span></span><br><span class="line"><span class="comment"> *  too expensive.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  The flow "header" (addresses, ports, proto, recursion level) are static</span></span><br><span class="line"><span class="comment"> *  after the initialization and remain read-only throughout the entire live</span></span><br><span class="line"><span class="comment"> *  of a flow. This is why we can access those without protection of the lock.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Flow_</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="comment">/* flow "header", used for hashing and flow lookup. Static after init,</span></span><br><span class="line"><span class="comment">     * so safe to look at without lock */</span></span><br><span class="line">    FlowAddress src, dst;</span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        Port sp;        <span class="comment">/**&lt; tcp/udp source port */</span></span><br><span class="line">        <span class="keyword">uint8_t</span> type;   <span class="comment">/**&lt; icmp type */</span></span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">union</span> &#123;</span><br><span class="line">        Port dp;        <span class="comment">/**&lt; tcp/udp destination port */</span></span><br><span class="line">        <span class="keyword">uint8_t</span> code;   <span class="comment">/**&lt; icmp code */</span></span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">uint8_t</span> proto;</span><br><span class="line">    <span class="keyword">uint8_t</span> recursion_level;</span><br><span class="line">    <span class="keyword">uint16_t</span> vlan_id[<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** flow hash - the flow hash before hash table size mod. */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> flow_hash;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* time stamp of last update (last packet). Set/updated under the</span></span><br><span class="line"><span class="comment">     * flow and flow hash row locks, safe to read under either the</span></span><br><span class="line"><span class="comment">     * flow lock or flow hash row lock. */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">timeval</span> <span class="title">lastts</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* end of flow "header" */</span></span><br><span class="line"></span><br><span class="line">    SC_ATOMIC_DECLARE(FlowStateType, flow_state);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** how many pkts and stream msgs are using the flow *right now*. This</span></span><br><span class="line"><span class="comment">     *  variable is atomic so not protected by the Flow mutex "m".</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     *  On receiving a packet the counter is incremented while the flow</span></span><br><span class="line"><span class="comment">     *  bucked is locked, which is also the case on timeout pruning.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    SC_ATOMIC_DECLARE(FlowRefCount, use_cnt);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** flow tenant id, used to setup flow timeout and stream pseudo</span></span><br><span class="line"><span class="comment">     *  packets with the correct tenant id set */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> tenant_id;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> probing_parser_toserver_alproto_masks;</span><br><span class="line">    <span class="keyword">uint32_t</span> probing_parser_toclient_alproto_masks;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> flags;         <span class="comment">/**&lt; generic flags */</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint16_t</span> file_flags;    <span class="comment">/**&lt; file tracking/extraction flags */</span></span><br><span class="line">    <span class="comment">/* coccinelle: Flow:file_flags:FLOWFILE_ */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** destination port to be used in protocol detection. This is meant</span></span><br><span class="line"><span class="comment">     *  for use with STARTTLS and HTTP CONNECT detection */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> protodetect_dp; <span class="comment">/**&lt; 0 if not used */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> FLOWLOCK_RWLOCK</span></span><br><span class="line">    SCRWLock r;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">elif</span> defined FLOWLOCK_MUTEX</span></span><br><span class="line">    SCMutex m;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">error</span> Enable FLOWLOCK_RWLOCK or FLOWLOCK_MUTEX</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** protocol specific data pointer, e.g. for TcpSession */</span></span><br><span class="line">    <span class="keyword">void</span> *protoctx;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** mapping to Flow's protocol specific protocols for timeouts</span></span><br><span class="line"><span class="comment">      and state and free functions. */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> protomap;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint8_t</span> flow_end_flags;</span><br><span class="line">    <span class="comment">/* coccinelle: Flow:flow_end_flags:FLOW_END_FLAG_ */</span></span><br><span class="line"></span><br><span class="line">    AppProto alproto; <span class="comment">/**&lt; \brief application level protocol */</span></span><br><span class="line">    AppProto alproto_ts;</span><br><span class="line">    AppProto alproto_tc;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** original application level protocol. Used to indicate the previous</span></span><br><span class="line"><span class="comment">      protocol when changing to another protocol , e.g. with STARTTLS. */</span></span><br><span class="line">    AppProto alproto_orig;</span><br><span class="line">    <span class="comment">/** expected app protocol: used in protocol change/upgrade like in</span></span><br><span class="line"><span class="comment">     *  STARTTLS. */</span></span><br><span class="line">    AppProto alproto_expect;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** detection engine ctx version used to inspect this flow. Set at initial</span></span><br><span class="line"><span class="comment">     *  inspection. If it doesn't match the currently in use de_ctx, the</span></span><br><span class="line"><span class="comment">     *  stored sgh ptrs are reset. */</span></span><br><span class="line">    <span class="keyword">uint32_t</span> de_ctx_version;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Thread ID for the stream/detect portion of this flow */</span></span><br><span class="line">    FlowThreadId thread_id;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** application level storage ptrs.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    AppLayerParserState *alparser;     <span class="comment">/**&lt; parser internal state */</span></span><br><span class="line">    <span class="keyword">void</span> *alstate;      <span class="comment">/**&lt; application layer state */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** toclient sgh for this flow. Only use when FLOW_SGH_TOCLIENT flow flag</span></span><br><span class="line"><span class="comment">     *  has been set. */</span></span><br><span class="line">    <span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">SigGroupHead_</span> *<span class="title">sgh_toclient</span>;</span></span><br><span class="line">    <span class="comment">/** toserver sgh for this flow. Only use when FLOW_SGH_TOSERVER flow flag</span></span><br><span class="line"><span class="comment">     *  has been set. */</span></span><br><span class="line">    <span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">SigGroupHead_</span> *<span class="title">sgh_toserver</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* pointer to the var list */</span></span><br><span class="line">    GenericVar *flowvar;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** hash list pointers, protected by fb-&gt;s */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Flow_</span> *<span class="title">hnext</span>;</span> <span class="comment">/* hash list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Flow_</span> *<span class="title">hprev</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">FlowBucket_</span> *<span class="title">fb</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** queue list pointers, protected by queue mutex */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Flow_</span> *<span class="title">lnext</span>;</span> <span class="comment">/* list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Flow_</span> *<span class="title">lprev</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">timeval</span> <span class="title">startts</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> todstpktcnt;</span><br><span class="line">    <span class="keyword">uint32_t</span> tosrcpktcnt;</span><br><span class="line">    <span class="keyword">uint64_t</span> todstbytecnt;</span><br><span class="line">    <span class="keyword">uint64_t</span> tosrcbytecnt;</span><br><span class="line">&#125; Flow;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>src<br>四层源地址。</li>
+<li>dst<br>四层目的地址。</li>
+<li>sp/type<br>四层源端口号。</li>
+<li>dp/code<br>四层目的端口号。</li>
+<li>proto<br>四层协议类型，从packet的proto赋值而来。</li>
+<li>recursion_level<br>指示经历了几次隧道封装。普通数据包这个值是0。从packet成员recursion_level赋值而来。</li>
+<li>vlan_id<br>成员长度为2的数组，存储了vlan的id，允许vlan嵌套，数组中的两项分别代表该嵌套层的vlan id。从packet成员vlan_id赋值而来。</li>
+<li>flow_hash<br>从packet的flow_hash赋值过来，未经过flow_config.hash_size取余的哈希值。</li>
+<li>lastts<br>当前flow最后的数据包更新时间。</li>
+<li>flow_state<br>flow的当前状态<ul>
+<li>FLOW_STATE_NEW,</li>
+<li>FLOW_STATE_ESTABLISHED,</li>
+<li>FLOW_STATE_CLOSED,</li>
+<li>FLOW_STATE_LOCAL_BYPASSED,</li>
+<li>FLOW_STATE_CAPTURE_BYPASSED,</li>
+</ul>
+</li>
+<li>use_cnt</li>
+<li>tenant_id</li>
+<li>probing_parser_toserver_alproto_masks<br>应用层协议检测probing parser方法时，标记该方向已经验证过不符合的应用层协议，避免重复验证。</li>
+<li>probing_parser_toclient_alproto_masks<br>应用层协议检测probing parser方法时，标记该方向已经验证过不符合的应用层协议，避免重复验证。</li>
+<li>flags<br>标明flow的一些标识。见flow.h 43行。</li>
+<li>file_flags</li>
+<li>protodetect_dp</li>
+<li>r/m</li>
+<li>protoctx<br>特定协议使用的数据指针，比如TCP使用的会话信息TcpSession。</li>
+<li>protomap<br>根据packet协议映射得到的枚举型，比如IPPROTO_TCP映射为FLOW_PROTO_TCP。应用层协议检测和协议分析时会使用，因为只对TCP、UDP、ICMP、SCTP四种类型做应用层检测与分析，因此重新映射为新的枚举值，便于用作数组索引项。</li>
+<li>flow_end_flags</li>
+<li>alproto</li>
+<li>alproto_ts</li>
+<li>alproto_tc</li>
+<li>alproto_orig</li>
+<li>de_ctx_version</li>
+<li>thread_id</li>
+<li>alparser</li>
+<li>alstate</li>
+<li>sgh_toclient</li>
+<li>sgh_toserver</li>
+<li>flowvar</li>
+<li>hnext<br>挂载到FlowBucket时的链表指针。</li>
+<li>hprev<br>挂载到FlowBucket时的链表指针。</li>
+<li>fb<br>挂载到FlowBucket时表明flow所属的bucket</li>
+<li>lnext<br>挂载到FlowQueue时的链表指针。比如flow_spare_q、flow_recycle_q。</li>
+<li>lprev<br>挂载到FlowQueue时的链表指针。比如flow_spare_q、flow_recycle_q。</li>
+<li>startts<br>flow初始化时间戳，从首个packet成员ts赋值而来。</li>
+<li>todstpktcnt</li>
+<li>tosrcpktcnt</li>
+<li>todstbytecnt</li>
+<li>tosrcbytecnt</li>
+</ul>
+<h2 id="Flow处理配置初始化"><a href="#Flow处理配置初始化" class="headerlink" title="Flow处理配置初始化"></a>Flow处理配置初始化</h2><p>main -&gt; PostConfLoadedSetup -&gt; PreRunInit -&gt; FlowInitConfig，这是流处理配置初始化运行位置。相关变量如下。</p>
+<ul>
+<li>flow_config<br>流处理中配置项集中存储与此。<ul>
+<li>hash_rand<br>初始化生成的随机数，用于计算hash值。</li>
+<li>hash_size<br>hash值的范围，也就是bucket的数目。配置文件条目flow.hash-size。默认值65536</li>
+<li>memcap<br>内存使用的上限。配置文件条目flow.memcap。默认值32MB。</li>
+<li>prealloc<br>预先分配的Flow数目。配置文件条目flow.prealloc。默认值10000。</li>
+<li>emergency_recovery<br>flow超时清除在emergency模式时需要达到一定条件才能切换回normal模式，这个条件就是空闲队列与预分配数目比例达到此值。配置文件条目flow.emergency-recovery，合法范围[1, 100]。默认值30。</li>
+</ul>
+</li>
+<li>flow_flags<br>用于标记当前是否处于FLOW_EMERGENCY模式。未发现其他用处。</li>
+<li>flow_memuse<br>flow和其hash table所使用的内存总量。</li>
+<li>flow_prune_idx<br>从使用中的flow中选出一个清空并再次使用时，使用该值选择遍历开始的hash table行号。</li>
+<li>flow_spare_q<br>空闲flow队列。在初始化时会创建flow_config.prealloc个数的flow放入这个队列中，内存使用计入flow_memuse。队列有锁保护。</li>
+<li>flow_recycle_q<br>等待回收的flow队列。超时的flow会放入此队列，等待后续移入空闲队列。</li>
+<li>flow_hash<br>flow的全局hash table，所有在使用的flow都会存在这里，由一组FlowBucket组成，分配的内存计入flow_memuse中。hash冲突使用链表解决，每个链表就是一个FlowBucket结构。这里内存分配时使用64字节对齐，考虑x86 cpu cache line。这里初始化了每个FlowBucket中的锁和next_ts项，next_tx是一个时间戳，用于提示flow manager检查该bucket。</li>
+<li>flow_timeouts<br>用于flow的超时清除，宏展开后为<code>flow_timeouts_sc_atomit_</code>，这是一个指针，有两个可能的指向，分别是flow_timeouts_normal与flow_timeouts_emerg，这两个变量结构相同，都有4个成员，new_timeout、est_timeout、closed_timeout、bypassed_timeout。当flow的空闲队列为空且内存达到限额无法继续创建flow时会切换为flow_timeouts_emerg，当flow manager发现flow空闲队列长度达到预分配数量的一定百分比时会切换为flow_timeouts_normal，这个百分比由flow_config.emergency_recovery决定。</li>
+</ul>
+<h2 id="Flow处理逻辑流程"><a href="#Flow处理逻辑流程" class="headerlink" title="Flow处理逻辑流程"></a>Flow处理逻辑流程</h2><figure class="highlight c"><figcaption><span>流处理部分代码</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* handle Flow */</span></span><br><span class="line"><span class="keyword">if</span> (p-&gt;flags &amp; PKT_WANTS_FLOW) &#123;</span><br><span class="line">    FLOWWORKER_PROFILING_START(p, PROFILE_FLOWWORKER_FLOW);</span><br><span class="line"></span><br><span class="line">    FlowHandlePacket(tv, fw-&gt;dtv, p);</span><br><span class="line">    <span class="keyword">if</span> (likely(p-&gt;flow != <span class="literal">NULL</span>)) &#123;</span><br><span class="line">        DEBUG_ASSERT_FLOW_LOCKED(p-&gt;flow);</span><br><span class="line">        <span class="keyword">if</span> (FlowUpdate(p) == TM_ECODE_DONE) &#123;</span><br><span class="line">            FLOWLOCK_UNLOCK(p-&gt;flow);</span><br><span class="line">            <span class="keyword">return</span> TM_ECODE_OK;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">/* Flow is now LOCKED */</span></span><br><span class="line"></span><br><span class="line">    FLOWWORKER_PROFILING_END(p, PROFILE_FLOWWORKER_FLOW);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* if PKT_WANTS_FLOW is not set, but PKT_HAS_FLOW is, then this is a</span></span><br><span class="line"><span class="comment">     * pseudo packet created by the flow manager. */</span></span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (p-&gt;flags &amp; PKT_HAS_FLOW) &#123;</span><br><span class="line">    FLOWLOCK_WRLOCK(p-&gt;flow);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="FlowHandlePacket"><a href="#FlowHandlePacket" class="headerlink" title="FlowHandlePacket"></a>FlowHandlePacket</h3><p>这个函数主要功能：</p>
+<ul>
+<li>获取一个匹配的flow并与packet关联，可能是从hash table中匹配到的，可能是新创建的，也可能是从hash table中清理出来。</li>
+<li>需要的情况下将flow初始化，并适当配置flow状态。</li>
+<li>需要的情况下对flow做reuse处理。</li>
+</ul>
+<p>具体逻辑如下：</p>
+<ul>
+<li>取得一个与packet匹配的flow。这里首先根据packet的flow_hash与flow_config.hash_size取余，定位FlowBucket并上锁。<ul>
+<li>如果bucket为空。<ul>
+<li>调用FlowGetNew函数取得一个空的且上锁的flow。如果flow为NULL，则解锁bucket，直接返回NULL，匹配flow失败。</li>
+<li>将flow插入bucket。</li>
+<li>调用FlowInit根据packet内容填充flow相关内容。并设置flow的flow_hash（packet成员flow_hash相等）与fb（指向bucket的指针）成员。</li>
+<li>将flow的flow_state设置为FLOW_STATE_NEW。</li>
+<li>将flow成员use_cnt加一。</li>
+<li>将packet成员flow指向刚刚获取的flow。</li>
+<li>解锁bucket，返回flow。</li>
+</ul>
+</li>
+<li>如果bucket不空。<ul>
+<li>调用FlowCompare函数循环比较bucket内链接的所有flow，直到遇到一个匹配成功的flow。如果到链表末尾仍未匹配成功则调用FlowGetNew函数获取新flow，如果获取失败则解锁bucket并返回NULL。</li>
+<li>匹配到flow后，将flow移动到bucket链表首部（对于新获取的flow，代码中实际将其置于链表尾部，这里并不合理）。</li>
+<li>对于bucket中匹配到的flow，由于没有上锁，这里需要先对flow上锁。</li>
+<li>这里对于tcp协议检查了是否需要对tcp会话做reuse处理。如果需要resue，则调用TcpReuseReplace函数进行reuse处理。<ul>
+<li>旧的flow的flags成员增加标记FLOW_TCP_REUSED。</li>
+<li>解锁旧flow。</li>
+<li>调用FlowGetNew获取新flow，插入bucket头，调用FlowInit初始化，设置flow_hash、fb、thread_id。返回新flow。</li>
+</ul>
+</li>
+<li>将flow成员use_cnt加一。</li>
+<li>将packet成员flow指向刚刚获取的flow。</li>
+<li>解锁bucket，返回flow。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>如果之前匹配流成功，将packet成员flags增加标记PKT_HAS_FLOW。</li>
+</ul>
+<p>FlowGetNew用于获取一个空的且上锁的flow，逻辑如下：</p>
+<ul>
+<li>从空闲队列取得flow，如果非NULL，锁定该flow，更新ThreadVars中协议相关计数器，返回该flow。</li>
+<li>空闲队列空的情况下，检查内存限额是否足够创建新的flow。<ul>
+<li>如果内存限额不足。<ul>
+<li>配置全局变量flow_flags增加标记FLOW_EMERGENCY。</li>
+<li>超时配置项切换为emergency。</li>
+<li>通过信号量唤醒flow manager线程。</li>
+<li>尝试从使用中的flow中清理出一个。</li>
+</ul>
+</li>
+<li>如果内存限额足够，则尝试分配内存创建一个新的flow。</li>
+</ul>
+</li>
+</ul>
+<p>FlowInit用于初始化一个flow，根据首个packet数据包填充，逻辑如下：</p>
+<ul>
+<li>配置flow成员proto、recursion_level、vlan_id，与packet中成员相同。</li>
+<li>如果packet是ipv4或ipv6，配置flow成员src、dst，分别是源地址、目的地址，并配置flow成员flags增加标记FLOW_IPV4或FLOW_IPV6。</li>
+<li>针对tcp、udp、icmp、sctp协议，配置flow成员源端口目的端口或type、code。</li>
+<li>配置flow成员startts为packet成员ts。</li>
+<li>配置flow成员protomap，根据packet协议映射得到的枚举型，比如IPPROTO_TCP映射为FLOW_PROTO_TCP。TODO这里的具体作用，应该有free函数相关。</li>
+</ul>
+<p>FlowCompare用于检查flow是否匹配packet，逻辑如下：</p>
+<ul>
+<li>icmp。<br>不关心。</li>
+<li>tcp。<br>源目的地址、源目的端口分别相等或反向相等，proto、recursion_level、vlan_id分别相等，同时这个flow的flags不能包含标记FLOW_TCP_REUSED。</li>
+<li>udp<br>源目的地址、源目的端口分别相等或反向相等，proto、recursion_level、vlan_id分别相等。</li>
+</ul>
+<h3 id="FlowUpdate"><a href="#FlowUpdate" class="headerlink" title="FlowUpdate"></a>FlowUpdate</h3><p>这个函数主要作用：</p>
+<ul>
+<li>判断packet的方向以及是否是该方向的首个数据包。</li>
+<li>判断flow是否已经分别处理两个方向的数据包。同时将协议检测的方向标记由flow移动到packet上。如果flow标记了不再检查数据包或载荷，那么对packet做同样的标记。</li>
+<li>判断flow状态是否需要bypass，如果需要那么FlowWorker的后续操作都将跳过。</li>
+</ul>
+<p>具体逻辑如下：</p>
+<ul>
+<li>检查flow成员flow_state状态。<ul>
+<li>如果状态为FLOW_STATE_CAPTURE_BYPASSED，检查packet的时间戳与flow成员lastts差值大于FLOW_BYPASSED_TIMEOUT的一半，如果大于则更新flow成员lastts为packet的时间戳，同时更新flow状态为FLOW_STATE_LOCAL_BYPASSED。</li>
+<li>如果状态不为FLOW_STATE_CAPTURE_BYPASSED，更新flow成员lastts为packet时间戳ts。</li>
+</ul>
+</li>
+<li>判断packet方向。这里的方向判断方式为，flow的发起方为client，被动接收方位server。<ul>
+<li>如果packet方向为TOSERVER。<ul>
+<li>更新flow计数器成员todstpktcnt、todstbytecnt。</li>
+<li>packet成员flowflags设置标记为FLOW_PKT_TOSERVER。</li>
+<li>检查flow成员flags，如果没有标记FLOW_TO_DST_SEEN，则增加该标记并对packet成员flowflags增加标记FLOW_PKT_TOSERVER_FIRST。</li>
+<li>TODO检查flow成员flags，如果包含标记FLOW_PROTO_DETECT_TS_DONE，则移除该标记并对packet成员flags增加标记PKT_PROTO_DETECT_TS_DONE。</li>
+</ul>
+</li>
+<li>如果packet方向为TOCLIENT。<ul>
+<li>更新flow计数器成员tosrcpktcnt、tosrcbytecnt。</li>
+<li>packet成员flowflags设置标记为FLOW_PKT_TOCLIENT。</li>
+<li>检查flow成员flags，如果没有标记FLOW_TO_SRC_SEEN，则增加该标记并对packet成员flowflags增加标记FLOW_PKT_TOCLIENT_FIRST。</li>
+<li>TODO检查flow成员flags，如果包含标记FLOW_PROTO_DETECT_TC_DONE，则移除该标记并对packet成员flags增加标记PKT_PROTO_DETECT_TC_DONE。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>如果flow成员flags同时包含标记FLOW_TO_DST_SEEN与FLOW_TO_SRC_SEEN。<ul>
+<li>将packet成员flowflags增加标记FLOW_PKT_ESTABLISHED。</li>
+<li>如果flow成员proto不是IPPROTO_TCP，将flow状态修改为FLOW_STATE_ESTABLISHED。我理解这里TCP需要三次握手。</li>
+</ul>
+</li>
+<li>如果flow成员flags包含标记FLOW_NOPACKET_INSPECTION，将packet成员flags增加标记PKT_NOPACKET_INSPECTION。</li>
+<li>如果flow成员flags包含标记FLOW_NOPAYLOAD_INSPECTION，将packet成员flags增加标记PKT_NOPAYLOAD_INSPECTION。</li>
+<li>检查flow状态如果是FLOW_STATE_CAPTURE_BYPASSED或FLOW_STATE_LOCAL_BYPASSED，将返回TM_ECODE_DONE，这意味着后续将直接解锁flow并由FlowWorker返回，不再对packet进行后续操作。</li>
+</ul>
+</div><div class="tags"></div><div class="post-nav"><a class="pre" href="/2018/05/28/suricata-4-0-3-tcp-reassembly/">suricata 4.0.3 tcp reassembly</a><a class="next" href="/2018/04/16/suricata-4-0-3-receive-decode/">suricata 4.0.3 收包解码</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://www.hyuuhit.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/suricata/">suricata</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/工具/" style="font-size: 15px;">工具</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/vmware/" style="font-size: 15px;">vmware</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/05/06/noblock-rabbitmq-c/">rabbitmq-c 非阻塞订阅</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/04/20/libyaml/">libyaml 解析配置文件</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/03/23/netns/">Linux network namespace 简单解读</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/11/af-packet-bpf/">AF_PACKET & BPF 伪造arp响应</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/04/nonblock-redis/">hiredis & libev 非阻塞模式</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/13/nwfilter/">libvirt nwfilter 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/12/03/libxml2/">libxml2 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/11/20/virt-install/">virt-install 简单使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/11/08/rcu/">Linux RCU 内核同步机制</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/17/linux-kernel-timer/">Linux timer 内核软件定时器</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2019 <a href="/." rel="nofollow">属乌鸦的.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
