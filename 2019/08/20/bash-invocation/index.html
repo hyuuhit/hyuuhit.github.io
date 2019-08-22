@@ -38,6 +38,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <li>non-login and interactive shell<br>非登录shell，但是为交互式，比如<ul>
 <li>直接运行<code>bash</code></li>
 <li><code>su USER_NAME</code>，注意这里没有参数<code>-</code>(login参数)</li>
+<li><code>ssh HOST COMMADN</code>，以ssh连接服务器执行命令的情况实际会启动一个non-login and interactive的shell，具体shell类型取决于/etc/passwd文件中记录的用户shell类型，不做特殊设置一般为bash。因此如果<code>$HOME/.bashrc</code>文件中有向标准输出打印字符的话，可能会引起远程scp执行错误。</li>
 </ul>
 </li>
 <li>non-login and non-interactive shell<br>非登录shell，且非交互式。普通的非交互式shell一般就是非登录shell，注意不要增加login参数既可，比如<ul>
