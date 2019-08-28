@@ -9,7 +9,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
   hm.src = 'https://hm.baidu.com/hm.js?' + '85d80db9310fa34ab2f7d34beeff589b';
   var s = document.getElementsByTagName("script")[0];
   s.parentNode.insertBefore(hm, s);
-  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">获取网卡列表的几种方式</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">获取网卡列表的几种方式</h1><div class="post-meta">Apr 5, 2018 5:46 PM</div><div class="post-content"><p>这里介绍可以列举网卡设备的三种方式:</p>
+  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">获取网卡列表的几种方式</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">获取网卡列表的几种方式</h1><div class="post-meta">Apr 5, 2018</div><div class="post-content"><p>这里介绍可以列举网卡设备的三种方式:</p>
 <ul>
 <li>ioctl<br>通过ioctl系统调用的SIOCGIFCONF请求获取网卡名，通过SIOCGIFINDEX请求获取网卡唯一索引。</li>
 <li>getifaddrs<br>这个函数可以返回网卡的信息和地址，区分协议族，也就是每个网卡名在返回数据中可能存在多次。这个函数的实现上依赖rtnetlink。</li>
