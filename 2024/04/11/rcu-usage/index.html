@@ -1,0 +1,89 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="hu yu's blog | Android | 服务端"><title>RCU 使用 | 属乌鸦的</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+ga('create','UA-129648993-1','auto');ga('send','pageview');
+</script><script>var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = 'https://hm.baidu.com/hm.js?' + '85d80db9310fa34ab2f7d34beeff589b';
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">RCU 使用</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">RCU 使用</h1><div class="post-meta">Apr 11, 2024</div><div class="clear"><div class="toc-article" id="toc"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu-synchronize-sched-怎么区分？"><span class="toc-number">1.</span> <span class="toc-text">synchronize_rcu / synchronize_sched 怎么区分？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-sched-expedited如何使用"><span class="toc-number">2.</span> <span class="toc-text">synchronize_sched_expedited如何使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu如何使用？"><span class="toc-number">3.</span> <span class="toc-text">synchronize_rcu如何使用？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu是否可以代替synchronize-rcu-bh使用？"><span class="toc-number">4.</span> <span class="toc-text">synchronize_rcu是否可以代替synchronize_rcu_bh使用？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier如何使用"><span class="toc-number">5.</span> <span class="toc-text">rcu_barrier如何使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier是否可以代替rcu-barrier-bh使用"><span class="toc-number">6.</span> <span class="toc-text">rcu_barrier是否可以代替rcu_barrier_bh使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu是否可以代替rcu-barrier使用"><span class="toc-number">7.</span> <span class="toc-text">synchronize_rcu是否可以代替rcu_barrier使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier是否可以代替synchronize-rcu使用"><span class="toc-number">8.</span> <span class="toc-text">rcu_barrier是否可以代替synchronize_rcu使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-sched-qs被调用位置"><span class="toc-number">9.</span> <span class="toc-text">rcu_sched_qs被调用位置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-bh-qs被调用位置"><span class="toc-number">10.</span> <span class="toc-text">rcu_bh_qs被调用位置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-preempt-qs被调用位置（大致，不准确）"><span class="toc-number">11.</span> <span class="toc-text">rcu_preempt_qs被调用位置（大致，不准确）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）"><span class="toc-number">12.</span> <span class="toc-text">rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-sched实现（在非抢占配置下即为synchronize-rcu）"><span class="toc-number">13.</span> <span class="toc-text">synchronize_sched实现（在非抢占配置下即为synchronize_rcu）</span></a></li></ol></div></div><div class="post-content"><p>之前在<a href="/2018/11/08/rcu/">Linux RCU 内核同步机制</a>中对RCU使用场景和使用方式理解存在不足，这里记录一下目前对RCU使用方面更多的个人理解。</p>
+<a id="more"></a>
+<p>本文内容参考内核版本 3.10.0-862.el7.x86_64</p>
+<h2 id="synchronize-rcu-synchronize-sched-怎么区分？"><a href="#synchronize-rcu-synchronize-sched-怎么区分？" class="headerlink" title="synchronize_rcu / synchronize_sched 怎么区分？"></a>synchronize_rcu / synchronize_sched 怎么区分？</h2><p>在非抢占配置下synchronize_rcu就是synchronize_sched。<br>一般服务器典型配置就是非抢占，因此暂不分析抢占情况。</p>
+<h2 id="synchronize-sched-expedited如何使用"><a href="#synchronize-sched-expedited如何使用" class="headerlink" title="synchronize_sched_expedited如何使用"></a>synchronize_sched_expedited如何使用</h2><p>可以看作与synchronize_rcu等同。区别在于会尝试使用绑定cpu的高优先级migration内核线程在每个CPU上调度一次，加速gp过程。但是这对于其他需要运行的线程不友好，因此尽量不要使用该api。以synchronize_net为例，只有在持有rtnl_mutex时才会使用该api加速gp，以减少mutex持有时间。</p>
+<h2 id="synchronize-rcu如何使用？"><a href="#synchronize-rcu如何使用？" class="headerlink" title="synchronize_rcu如何使用？"></a>synchronize_rcu如何使用？</h2><p>只用于等待确保所有cpu上之前的rcu_read_lock临界区都退出。</p>
+<p>但是由于其实现机制，还可以有不规范的使用方式以满足一些特殊需求，比如等待所有cpu离开某一段代码段，后面会有文章说明。</p>
+<h2 id="synchronize-rcu是否可以代替synchronize-rcu-bh使用？"><a href="#synchronize-rcu是否可以代替synchronize-rcu-bh使用？" class="headerlink" title="synchronize_rcu是否可以代替synchronize_rcu_bh使用？"></a>synchronize_rcu是否可以代替synchronize_rcu_bh使用？</h2><p>这个问题可以替换为call_rcu回调完成后，是否可能还有cpu会处于rcu_read_lock_bh临界区。<br>从当前的实现上看，个人认为是不可能的，因为rcu_read_lock_bh临界区内，是不应该发生rcu_sched_qs被调用的情况的。<br>但是，从api的语义角度考虑，不应该这么替代使用。也不确定高版本内核的实现如何。</p>
+<h2 id="rcu-barrier如何使用"><a href="#rcu-barrier如何使用" class="headerlink" title="rcu_barrier如何使用"></a>rcu_barrier如何使用</h2><p>只用于等待确保所有cpu上之前的call_rcu回调全部执行完成。</p>
+<h2 id="rcu-barrier是否可以代替rcu-barrier-bh使用"><a href="#rcu-barrier是否可以代替rcu-barrier-bh使用" class="headerlink" title="rcu_barrier是否可以代替rcu_barrier_bh使用"></a>rcu_barrier是否可以代替rcu_barrier_bh使用</h2><p>不可以。语义上这两个api无关，分别对应的是call_rcu和call_rcu_bh。当前版本的实现也不支持这种代替操作，理由如下。</p>
+<ul>
+<li>如果rcu_sched_state上没有callback的话，rcu_barrier会直接返回。</li>
+<li>qs判定条件不同，虽然时钟中断时synchronize_rcu的判定更严格，但是rcu_sched_qs还有其他的调用位置，因此无法保证sched的qs不晚于bh的qs。一次gp的结束是在独立的内核线程中做出的操作，分别是rcu_sched与rcu_bh，内核线程需要调度，因此就算qs同时判定，也可能发生rcu_sched更早被调度，其gp结束更早，其callback被更早调用的情况。</li>
+<li>一个cpu上的callbac的回调会分批执行，默认blimit为10，参数/sys/module/rcutree/parameters/blimit。当执行数超过blimit，且need_resched()为真或非idle且非独立线程时会中断执行，剩余未执行的callback重新挂回rdp-&gt;nxtlist。因此gp结束且开始执行回调时，并不一定所有回调都会执行完，sched的callback都执行完时，bh的callback未执行完也是可能发生的。</li>
+</ul>
+<p>PS：rcu_struct_flavors链表中rcu_bh_state在rcu_sched_state前，遍历所有的rsp时，会先处理rcu_bh_state。但这个顺序依赖于实现，而且在这个问题上也没有作用。</p>
+<h2 id="synchronize-rcu是否可以代替rcu-barrier使用"><a href="#synchronize-rcu是否可以代替rcu-barrier使用" class="headerlink" title="synchronize_rcu是否可以代替rcu_barrier使用"></a>synchronize_rcu是否可以代替rcu_barrier使用</h2><p>不可以。理由如下。</p>
+<ul>
+<li>synchronize_rcu只用了一个cpu的call_rcu回调完成用于标识gp的完成，但是callback的回调是在gp完成以后，分布于多个cpu的，且一个cpu上的callback不一定会一次全部执行完。</li>
+<li>单核情况更严重，synchronize_rcu用了一个快速判定gp完成的方式，直接返回了，完全没有等待callback的效果。</li>
+</ul>
+<h2 id="rcu-barrier是否可以代替synchronize-rcu使用"><a href="#rcu-barrier是否可以代替synchronize-rcu使用" class="headerlink" title="rcu_barrier是否可以代替synchronize_rcu使用"></a>rcu_barrier是否可以代替synchronize_rcu使用</h2><p>不可以。理由如下。</p>
+<ul>
+<li>rcu_barrier会等待所有cpu上的callback都执行完成，如果所有cpu都没有callback挂载，那么会直接返回，不会等待任何qs与gp。</li>
+</ul>
+<h2 id="rcu-sched-qs被调用位置"><a href="#rcu-sched-qs被调用位置" class="headerlink" title="rcu_sched_qs被调用位置"></a>rcu_sched_qs被调用位置</h2><ul>
+<li>rcu_check_callbacks（时钟中断时判断之前处于用户态或cpu idle）</li>
+<li>rcu_note_context_switch</li>
+<li>__kvm_guest_enter，kvm进入guest模式不会持有任何rcu读临界区，在guest模式可能运行较长时间，因此把这看作一个qs，类似切换用户态。</li>
+<li>__schedule，每次调度，看作一个qs</li>
+<li>run_ksoftirqd，每次软中断进程被调用，__do_softirq完成后，被调用，看作一个qs</li>
+<li>process_one_work，workqueue相关，完成每个work后看过一个qs，并尝试检查是否需要调度，用以避免长时间占用cpu（这里判断了TIF_NEED_RESCHED以及当前是否正处于被抢占中，因此不确定非抢占配置下是否会调度）</li>
+</ul>
+<h2 id="rcu-bh-qs被调用位置"><a href="#rcu-bh-qs被调用位置" class="headerlink" title="rcu_bh_qs被调用位置"></a>rcu_bh_qs被调用位置</h2><ul>
+<li>rcu_check_callbacks（时钟中断时判断之前处于用户态或cpu idle，这里的qs是与rcu_shed_qs相同的）</li>
+<li>rcu_check_callbacks（不满足上面的条件，但是处于非软中断状态。因为rcu_read_lock_bh会关软中断，in_softirq会判定处于软中断状态。因此非软中断状态也就是不在读临界区）</li>
+</ul>
+<h2 id="rcu-preempt-qs被调用位置（大致，不准确）"><a href="#rcu-preempt-qs被调用位置（大致，不准确）" class="headerlink" title="rcu_preempt_qs被调用位置（大致，不准确）"></a>rcu_preempt_qs被调用位置（大致，不准确）</h2><ul>
+<li>rcu_read_unlock_special（离开最外层临界区时）</li>
+<li>rcu_preempt_note_context_switch &lt;- rcu_note_context_switch（每次）</li>
+<li>rcu_preempt_check_callbacks &lt;- rcu_check_callbacks（不处于临界区中时）</li>
+</ul>
+<h2 id="rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）"><a href="#rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）" class="headerlink" title="rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）"></a>rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）</h2><p>rcu_barrier_sched / rcu_barrier_bh 的区别仅为对不同的rsp调用_rcu_barrier<br>_rcu_barrier，简略描述即为在每个cpu上调用call_rcu_XXX，并等待所有回调完成。那么之前的回调当然也已经都完成了。</p>
+<ul>
+<li>读取rsp-&gt;n_barrier_done</li>
+<li>上锁rsp-&gt;barrier_mutex</li>
+<li>再次读取rsp-&gt;n_barrier_done</li>
+<li>判断两次读取值的对比，如果获取锁期间有其他进程完成了对应rsp的barrier操作，说明当前进程也完成了其目标，直接返回。</li>
+<li>rsp-&gt;n_barrier_done加1</li>
+<li>调用init_completion初始化rsp-&gt;barrier_completion</li>
+<li>rsp-&gt;barrier_cpu_count置为1</li>
+<li>遍历每一个在线且不为nocb的cpu（默认均不为nocb）<ul>
+<li>如果cpu对应的rdp-&gt;qlen大于0，也就是存在callback，则对该cpu调用smp_call_function_single，传入函数指针rcu_barrier_func，rsp<ul>
+<li>这个就是睡眠等待每个CPU调用rcu_barrier_func(rsp)<ul>
+<li>rsp-&gt;barrier_cpu_count加1</li>
+<li>调用rsp-&gt;call，这个call在rsp定义的时候设置的，比如rcu_sched_state.call即为call_rcu_sched。回调函数为rcu_barrier_callback，这里可以猜到内部就是减rsp-&gt;barrier_cpu_count计数并在为0时调用complete标记完成并唤醒等待进程</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>如果cpu对应的rdp-&gt;qlen等于0，不需要任何操作。</li>
+</ul>
+</li>
+<li>rsp-&gt;barrier_cpu_count减1，如果减为0则对rsp-&gt;barrier_completion调用complete将其标记为完成并唤醒等待进程</li>
+<li>rsp-&gt;n_barrier_done加1</li>
+<li>等待rsp-&gt;barrier_completion完成</li>
+<li>解锁rsp-&gt;barrier_mutex</li>
+</ul>
+<h2 id="synchronize-sched实现（在非抢占配置下即为synchronize-rcu）"><a href="#synchronize-sched实现（在非抢占配置下即为synchronize-rcu）" class="headerlink" title="synchronize_sched实现（在非抢占配置下即为synchronize_rcu）"></a>synchronize_sched实现（在非抢占配置下即为synchronize_rcu）</h2><ul>
+<li>rcu_blocking_is_gp，判断当前在线cpu数，如果为1，则判定为当前gp已经完成，不存在未完成的临界区，直接返回。</li>
+<li>wait_rcu_gp，参数call_rcu_sched<ul>
+<li>初始化栈上的rcu_head和completion</li>
+<li>调用参数传入的函数指针（这里参数为call_rcu_sched）回调函数为wakeme_after_rcu</li>
+<li>等待completion完成</li>
+</ul>
+</li>
+</ul>
+</div><div class="tags"><a href="/tags/linux/">linux</a></div><div class="post-nav"><a class="next" href="/2022/09/16/tc-tbf-qdisc/">tc tbf qdisc</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://www.hyuuhit.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/libvirt/">libvirt</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/suricata/">suricata</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/工具/" style="font-size: 15px;">工具</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/vmware/" style="font-size: 15px;">vmware</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2024/04/11/rcu-usage/">RCU 使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2022/09/16/tc-tbf-qdisc/">tc tbf qdisc</a></li><li class="post-list-item"><a class="post-list-link" href="/2022/08/08/function-call-stack/">gdb查看寄存器及内存数据与函数调用栈分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/11/16/libpcap-cutoff-captured-packet/">libpcap在libvirt虚拟化环境下捕获数据包不完整的一种情况分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/08/27/bash-audit/">一种简单的bash审计方法</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/08/20/bash-invocation/">bash 调用方式与配置文件</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/08/17/uriparser/">uriparser 解析处理URI</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/05/06/noblock-rabbitmq-c/">rabbitmq-c 非阻塞订阅</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/04/20/libyaml/">libyaml 解析配置文件</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/03/23/netns/">Linux network namespace 简单解读</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2024 <a href="/." rel="nofollow">属乌鸦的.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
