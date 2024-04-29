@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.hyuuhit.com/2024/04/29/memory-consistency-model-memory-barrier-and-sychronization/</loc>
+    <lastmod>2024-04-29T12:41:40.334Z</lastmod>
+  </url>  <url>
     <loc>https://www.hyuuhit.com/2024/04/11/rcu-usage/</loc>
     <lastmod>2024-04-11T13:04:06.067Z</lastmod>
   </url>  <url>
@@ -25,10 +28,10 @@
     <loc>https://www.hyuuhit.com/2019/05/06/noblock-rabbitmq-c/</loc>
     <lastmod>2019-08-10T09:00:40.053Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2019/03/23/netns/</loc>
+    <loc>https://www.hyuuhit.com/2019/04/20/libyaml/</loc>
     <lastmod>2019-08-10T09:00:40.052Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2019/04/20/libyaml/</loc>
+    <loc>https://www.hyuuhit.com/2019/03/23/netns/</loc>
     <lastmod>2019-08-10T09:00:40.052Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2019/01/11/af-packet-bpf/</loc>
@@ -55,16 +58,16 @@
     <loc>https://www.hyuuhit.com/2018/09/18/generic-netlink/</loc>
     <lastmod>2019-08-10T09:00:40.046Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2018/08/22/netlink/</loc>
-    <lastmod>2019-08-10T09:00:40.045Z</lastmod>
-  </url>  <url>
     <loc>https://www.hyuuhit.com/2018/08/25/vim-dot-file-indent/</loc>
     <lastmod>2019-08-10T09:00:40.045Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2018/07/25/receive-packet/</loc>
-    <lastmod>2019-08-10T09:00:40.044Z</lastmod>
+    <loc>https://www.hyuuhit.com/2018/08/22/netlink/</loc>
+    <lastmod>2019-08-10T09:00:40.045Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2018/08/03/linux-kernel-thread/</loc>
+    <lastmod>2019-08-10T09:00:40.044Z</lastmod>
+  </url>  <url>
+    <loc>https://www.hyuuhit.com/2018/07/25/receive-packet/</loc>
     <lastmod>2019-08-10T09:00:40.044Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2018/07/15/netfilter/</loc>
@@ -82,10 +85,10 @@
     <loc>https://www.hyuuhit.com/2018/06/20/suricata-4-0-3-app-layer-protocol-detect/</loc>
     <lastmod>2019-08-10T09:00:40.041Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2018/05/28/suricata-4-0-3-tcp-reassembly/</loc>
+    <loc>https://www.hyuuhit.com/2018/06/12/Aho%E2%80%93Corasick-Algorithm/</loc>
     <lastmod>2019-08-10T09:00:40.040Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2018/06/12/Aho%E2%80%93Corasick-Algorithm/</loc>
+    <loc>https://www.hyuuhit.com/2018/05/28/suricata-4-0-3-tcp-reassembly/</loc>
     <lastmod>2019-08-10T09:00:40.040Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2018/05/28/suricata-4-0-3-flow/</loc>
