@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.hyuuhit.com/2024/04/29/memory-consistency-model-memory-barrier-and-sychronization/</loc>
-    <lastmod>2024-04-30T03:29:57.952Z</lastmod>
+    <loc>https://www.hyuuhit.com/2018/11/08/rcu/</loc>
+    <lastmod>2024-05-03T12:57:16.078Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2024/04/11/rcu-usage/</loc>
-    <lastmod>2024-04-11T13:04:06.067Z</lastmod>
+    <lastmod>2024-05-03T12:52:15.355Z</lastmod>
+  </url>  <url>
+    <loc>https://www.hyuuhit.com/2024/04/29/memory-consistency-model-memory-barrier-and-sychronization/</loc>
+    <lastmod>2024-04-30T03:29:57.952Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2022/09/16/tc-tbf-qdisc/</loc>
     <lastmod>2022-09-16T12:26:13.920Z</lastmod>
@@ -28,10 +31,10 @@
     <loc>https://www.hyuuhit.com/2019/05/06/noblock-rabbitmq-c/</loc>
     <lastmod>2019-08-10T09:00:40.053Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2019/04/20/libyaml/</loc>
+    <loc>https://www.hyuuhit.com/2019/03/23/netns/</loc>
     <lastmod>2019-08-10T09:00:40.052Z</lastmod>
   </url>  <url>
-    <loc>https://www.hyuuhit.com/2019/03/23/netns/</loc>
+    <loc>https://www.hyuuhit.com/2019/04/20/libyaml/</loc>
     <lastmod>2019-08-10T09:00:40.052Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2019/01/11/af-packet-bpf/</loc>
@@ -48,9 +51,6 @@
   </url>  <url>
     <loc>https://www.hyuuhit.com/2018/11/20/virt-install/</loc>
     <lastmod>2019-08-10T09:00:40.049Z</lastmod>
-  </url>  <url>
-    <loc>https://www.hyuuhit.com/2018/11/08/rcu/</loc>
-    <lastmod>2019-08-10T09:00:40.048Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2018/10/17/linux-kernel-timer/</loc>
     <lastmod>2019-08-10T09:00:40.047Z</lastmod>

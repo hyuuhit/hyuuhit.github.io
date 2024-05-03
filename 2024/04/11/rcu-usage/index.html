@@ -9,49 +9,130 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
   hm.src = 'https://hm.baidu.com/hm.js?' + '85d80db9310fa34ab2f7d34beeff589b';
   var s = document.getElementsByTagName("script")[0];
   s.parentNode.insertBefore(hm, s);
-  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">RCU 使用</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">RCU 使用</h1><div class="post-meta">Apr 11, 2024</div><div class="clear"><div class="toc-article" id="toc"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu-synchronize-sched-怎么区分？"><span class="toc-number">1.</span> <span class="toc-text">synchronize_rcu / synchronize_sched 怎么区分？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-sched-expedited如何使用"><span class="toc-number">2.</span> <span class="toc-text">synchronize_sched_expedited如何使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu如何使用？"><span class="toc-number">3.</span> <span class="toc-text">synchronize_rcu如何使用？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu是否可以代替synchronize-rcu-bh使用？"><span class="toc-number">4.</span> <span class="toc-text">synchronize_rcu是否可以代替synchronize_rcu_bh使用？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier如何使用"><span class="toc-number">5.</span> <span class="toc-text">rcu_barrier如何使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier是否可以代替rcu-barrier-bh使用"><span class="toc-number">6.</span> <span class="toc-text">rcu_barrier是否可以代替rcu_barrier_bh使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-rcu是否可以代替rcu-barrier使用"><span class="toc-number">7.</span> <span class="toc-text">synchronize_rcu是否可以代替rcu_barrier使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier是否可以代替synchronize-rcu使用"><span class="toc-number">8.</span> <span class="toc-text">rcu_barrier是否可以代替synchronize_rcu使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-sched-qs被调用位置"><span class="toc-number">9.</span> <span class="toc-text">rcu_sched_qs被调用位置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-bh-qs被调用位置"><span class="toc-number">10.</span> <span class="toc-text">rcu_bh_qs被调用位置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-preempt-qs被调用位置（大致，不准确）"><span class="toc-number">11.</span> <span class="toc-text">rcu_preempt_qs被调用位置（大致，不准确）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）"><span class="toc-number">12.</span> <span class="toc-text">rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#synchronize-sched实现（在非抢占配置下即为synchronize-rcu）"><span class="toc-number">13.</span> <span class="toc-text">synchronize_sched实现（在非抢占配置下即为synchronize_rcu）</span></a></li></ol></div></div><div class="post-content"><p>之前在<a href="/2018/11/08/rcu/">Linux RCU 内核同步机制</a>中对RCU使用场景和使用方式理解存在不足，这里记录一下目前对RCU使用方面更多的个人理解。</p>
+  })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">RCU 使用</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">RCU 使用</h1><div class="post-meta">Apr 11, 2024</div><div class="clear"><div class="toc-article" id="toc"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#抢占式RCU"><span class="toc-number">1.</span> <span class="toc-text">抢占式RCU</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#大体流程"><span class="toc-number">1.1.</span> <span class="toc-text">大体流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-read-lock"><span class="toc-number">1.2.</span> <span class="toc-text">rcu_read_lock</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-preempt-note-context-switch（进程发生调度）"><span class="toc-number">1.3.</span> <span class="toc-text">rcu_preempt_note_context_switch（进程发生调度）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-read-unlock"><span class="toc-number">1.4.</span> <span class="toc-text">rcu_read_unlock</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#非抢占式RCU环境下"><span class="toc-number">2.</span> <span class="toc-text">非抢占式RCU环境下</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#synchronize-rcu-synchronize-sched-怎么区分？"><span class="toc-number">2.1.</span> <span class="toc-text">synchronize_rcu / synchronize_sched 怎么区分？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#synchronize-sched-expedited如何使用"><span class="toc-number">2.2.</span> <span class="toc-text">synchronize_sched_expedited如何使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#synchronize-rcu如何使用？"><span class="toc-number">2.3.</span> <span class="toc-text">synchronize_rcu如何使用？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#synchronize-rcu是否可以代替synchronize-rcu-bh使用？"><span class="toc-number">2.4.</span> <span class="toc-text">synchronize_rcu是否可以代替synchronize_rcu_bh使用？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-barrier如何使用"><span class="toc-number">2.5.</span> <span class="toc-text">rcu_barrier如何使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-barrier是否可以代替rcu-barrier-bh使用"><span class="toc-number">2.6.</span> <span class="toc-text">rcu_barrier是否可以代替rcu_barrier_bh使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#synchronize-rcu是否可以代替rcu-barrier使用"><span class="toc-number">2.7.</span> <span class="toc-text">synchronize_rcu是否可以代替rcu_barrier使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-barrier是否可以代替synchronize-rcu使用"><span class="toc-number">2.8.</span> <span class="toc-text">rcu_barrier是否可以代替synchronize_rcu使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-sched-qs被调用位置"><span class="toc-number">2.9.</span> <span class="toc-text">rcu_sched_qs被调用位置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-bh-qs被调用位置"><span class="toc-number">2.10.</span> <span class="toc-text">rcu_bh_qs被调用位置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-preempt-qs被调用位置"><span class="toc-number">2.11.</span> <span class="toc-text">rcu_preempt_qs被调用位置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）"><span class="toc-number">2.12.</span> <span class="toc-text">rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#synchronize-sched实现（在非抢占配置下即为synchronize-rcu）"><span class="toc-number">2.13.</span> <span class="toc-text">synchronize_sched实现（在非抢占配置下即为synchronize_rcu）</span></a></li></ol></li></ol></div></div><div class="post-content"><p>之前在<a href="/2018/11/08/rcu/">Linux RCU 内核同步机制</a>中对RCU基本流程做了记录，这里记录一下抢占式RCU和RCU使用方面更多的理解。</p>
+<p>由于高版本整合了抢占和非抢占RCU更新端的API，不再有synchronize_rcu/synchronize_sched/synchronize_rcu_bh这种区分了，只在临界区API中保留了不同RCU的区别。因此本文在抢占式RCU段落以外的内容，均假定为未开启抢占配置。</p>
 <a id="more"></a>
 <p>本文内容参考内核版本 3.10.0-862.el7.x86_64</p>
-<h2 id="synchronize-rcu-synchronize-sched-怎么区分？"><a href="#synchronize-rcu-synchronize-sched-怎么区分？" class="headerlink" title="synchronize_rcu / synchronize_sched 怎么区分？"></a>synchronize_rcu / synchronize_sched 怎么区分？</h2><p>在非抢占配置下synchronize_rcu就是synchronize_sched。<br>一般服务器典型配置就是非抢占，因此暂不分析抢占情况。</p>
-<h2 id="synchronize-sched-expedited如何使用"><a href="#synchronize-sched-expedited如何使用" class="headerlink" title="synchronize_sched_expedited如何使用"></a>synchronize_sched_expedited如何使用</h2><p>可以看作与synchronize_rcu等同。区别在于会尝试使用绑定cpu的高优先级migration内核线程在每个CPU上调度一次，加速gp过程。但是这对于其他需要运行的线程不友好，因此尽量不要使用该api。以synchronize_net为例，只有在持有rtnl_mutex时才会使用该api加速gp，以减少mutex持有时间。</p>
-<h2 id="synchronize-rcu如何使用？"><a href="#synchronize-rcu如何使用？" class="headerlink" title="synchronize_rcu如何使用？"></a>synchronize_rcu如何使用？</h2><p>只用于等待确保所有cpu上之前的rcu_read_lock临界区都退出。</p>
-<p>但是由于其实现机制，还可以有不规范的使用方式以满足一些特殊需求，比如等待所有cpu离开某一段代码段，后面会有文章说明。</p>
-<h2 id="synchronize-rcu是否可以代替synchronize-rcu-bh使用？"><a href="#synchronize-rcu是否可以代替synchronize-rcu-bh使用？" class="headerlink" title="synchronize_rcu是否可以代替synchronize_rcu_bh使用？"></a>synchronize_rcu是否可以代替synchronize_rcu_bh使用？</h2><p>这个问题可以替换为call_rcu回调完成后，是否可能还有cpu会处于rcu_read_lock_bh临界区。<br>从当前的实现上看，个人认为是不可能的，因为rcu_read_lock_bh临界区内，是不应该发生rcu_sched_qs被调用的情况的。<br>但是，从api的语义角度考虑，不应该这么替代使用。也不确定高版本内核的实现如何。</p>
-<h2 id="rcu-barrier如何使用"><a href="#rcu-barrier如何使用" class="headerlink" title="rcu_barrier如何使用"></a>rcu_barrier如何使用</h2><p>只用于等待确保所有cpu上之前的call_rcu回调全部执行完成。</p>
-<h2 id="rcu-barrier是否可以代替rcu-barrier-bh使用"><a href="#rcu-barrier是否可以代替rcu-barrier-bh使用" class="headerlink" title="rcu_barrier是否可以代替rcu_barrier_bh使用"></a>rcu_barrier是否可以代替rcu_barrier_bh使用</h2><p>不可以。语义上这两个api无关，分别对应的是call_rcu和call_rcu_bh。当前版本的实现也不支持这种代替操作，理由如下。</p>
+<h2 id="抢占式RCU"><a href="#抢占式RCU" class="headerlink" title="抢占式RCU"></a>抢占式RCU</h2><p>抢占式RCU需要开启编译配置CONFIG_PREEMPT_RCU。</p>
+<p>被抢占的临界区，在临界区退出之前，gp不会完成。</p>
+<h3 id="大体流程"><a href="#大体流程" class="headerlink" title="大体流程"></a>大体流程</h3><p>抢占式RCU大体流程与非抢占RCU类似，<a href="/2018/11/08/rcu">参考</a>：</p>
+<ul>
+<li>当需要启动一个gp时，软中断将rsp-&gt;gp_flags标记为RCU_GP_FLAG_INIT</li>
+<li>内核线程更新rsp和rnp相关内容</li>
+<li>软中断将新gp相关内容向下传递到rdp</li>
+<li>每个cpu在定时器中断中判定当前task是否在临界区<ul>
+<li>如果不在临界区，调用rcu_preempt_qs<ul>
+<li>标记rdp经历过了qs</li>
+<li>task-&gt;rcu_read_unlock_special清除RCU_READ_UNLOCK_NEED_QS</li>
+</ul>
+</li>
+<li>如果在临界区内<ul>
+<li>task-&gt;rcu_read_unlock_special置位RCU_READ_UNLOCK_NEED_QS</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>每个cpu在RCU软中断中检查qs状态，如果经历过qs则逐级上报</li>
+<li>但是如果一个rcu临界区被抢占了，在rcu_report_qs_rnp上报中会发现rnp-&gt;gp_tasks不为空，阻断继续向上传递</li>
+<li>后面就需要rcu_read_unlock_special进来干活了</li>
+</ul>
+<h3 id="rcu-read-lock"><a href="#rcu-read-lock" class="headerlink" title="rcu_read_lock"></a>rcu_read_lock</h3><ul>
+<li>增加task-&gt;rcu_read_lock_nesting计数，标记当前进程在临界区</li>
+</ul>
+<h3 id="rcu-preempt-note-context-switch（进程发生调度）"><a href="#rcu-preempt-note-context-switch（进程发生调度）" class="headerlink" title="rcu_preempt_note_context_switch（进程发生调度）"></a>rcu_preempt_note_context_switch（进程发生调度）</h3><ul>
+<li>判断当前进程状态<ul>
+<li>如果当前进程在临界区内且RCU_READ_UNLOCK_BLOCKED未置位（用于标记经历过抢占）<ul>
+<li>task-&gt;rcu_read_unlock_special置位RCU_READ_UNLOCK_BLOCKED</li>
+<li>task-&gt;rcu_blocked_node记录当前CPU所属的rnp</li>
+<li>将task-&gt;rcu_node_entry挂在rnp-&gt;blkd_tasks链表头部。如果当前cpu需要上报qs则更新rnp-&gt;gp_tasks用于标记当前gp被抢占的task链表。</li>
+</ul>
+</li>
+<li>如果当前进程经历过抢占，正在退出最外层临界区（说明rnp-&gt;blkd_tasks和tp_task需要处理）<ul>
+<li>调用rcu_read_unlock_special（函数内部逻辑运行在关中断状态且rnp上锁。处理被阻塞的rnp相关流程）<ul>
+<li>如果task-&gt;rcu_read_unlock_special存在置位RCU_READ_UNLOCK_NEED_QS，调用rcu_preempt_qs。因为只有退出最外层临界区时才会进到这个函数</li>
+<li>如果当前处于中断或软中断服务中，不进行后续流程，直接返回。（应该是在退出临界区过程中进入了中断，中断里再次进入并离开临界区。因为中断处理完成后就会立即再进行rcu_read_unlock_special，没必要在中断里做这个事）</li>
+<li>如果task-&gt;rcu_read_unlock_special存在置位RCU_READ_UNLOCK_BLOCKED<ul>
+<li>清掉RCU_READ_UNLOCK_BLOCKED置位</li>
+<li>从task-&gt;rcu_blocked_node获取阻塞的rnp（这里的task还可能会迁移？）</li>
+<li>将task从rnp-&gt;blkd_tasks链表中摘出来，并更新gp_tasks</li>
+<li>如果当前task是链表最后一个<ul>
+<li>调用rcu_report_unblock_qs_rnp<ul>
+<li>如果该rnp下所有CPU未全部经历qs或依然有阻塞task，则返回。</li>
+<li>如果没有上级rnp，调用rcu_report_qs_rsp<ul>
+<li>唤醒RCU内核线程</li>
+</ul>
+</li>
+<li>如果存在上级rnp，调用rcu_report_qs_rnp<ul>
+<li>满足所有rnp均度过qs情况下调用rcu_report_qs_rsp</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>调用rcu_preempt_qs标记cpu的qs。（这里只是标记当前CPU的qs，但是当前gp的完成还需要判断rnp-&gt;gp_tasks链表）</li>
+</ul>
+<h3 id="rcu-read-unlock"><a href="#rcu-read-unlock" class="headerlink" title="rcu_read_unlock"></a>rcu_read_unlock</h3><ul>
+<li>判断task-&gt;rcu_read_lock_nesting<ul>
+<li>如果不为1，说明处于多层嵌套临界区，只需要减1既可</li>
+<li>如果为1，说明在退出最外层临界区。<ul>
+<li>rcu_read_lock_nesting先置为负数（如果这里后面发生了抢占，可以在__schedule中尽早调用rcu_read_unlock_special尝试完成gp）</li>
+<li>根据task-&gt;rcu_read_unlock_special判断调用rcu_read_unlock_special函数</li>
+<li>task-&gt;rcu_read_lock_nesting置0，标记task彻底退出了临界区。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="非抢占式RCU环境下"><a href="#非抢占式RCU环境下" class="headerlink" title="非抢占式RCU环境下"></a>非抢占式RCU环境下</h2><h3 id="synchronize-rcu-synchronize-sched-怎么区分？"><a href="#synchronize-rcu-synchronize-sched-怎么区分？" class="headerlink" title="synchronize_rcu / synchronize_sched 怎么区分？"></a>synchronize_rcu / synchronize_sched 怎么区分？</h3><p>在非抢占配置下synchronize_rcu就是synchronize_sched。<br>低版本服务器典型配置就是非抢占。高版本整合了RCU更新端API，不再区分。</p>
+<h3 id="synchronize-sched-expedited如何使用"><a href="#synchronize-sched-expedited如何使用" class="headerlink" title="synchronize_sched_expedited如何使用"></a>synchronize_sched_expedited如何使用</h3><p>可以看作与synchronize_rcu等同。区别在于会尝试使用绑定cpu的高优先级migration内核线程在每个CPU上调度一次，加速gp过程。但是这对于其他需要运行的线程不友好，因此尽量不要使用该api。以synchronize_net为例，只有在持有rtnl_mutex时才会使用该api加速gp，以减少mutex持有时间。</p>
+<h3 id="synchronize-rcu如何使用？"><a href="#synchronize-rcu如何使用？" class="headerlink" title="synchronize_rcu如何使用？"></a>synchronize_rcu如何使用？</h3><p>只用于等待确保所有cpu上之前的rcu_read_lock临界区都退出。</p>
+<h3 id="synchronize-rcu是否可以代替synchronize-rcu-bh使用？"><a href="#synchronize-rcu是否可以代替synchronize-rcu-bh使用？" class="headerlink" title="synchronize_rcu是否可以代替synchronize_rcu_bh使用？"></a>synchronize_rcu是否可以代替synchronize_rcu_bh使用？</h3><p>这个问题可以替换为call_rcu回调完成后，是否可能还有cpu会处于rcu_read_lock_bh临界区。<br>从当前的实现上看，个人认为是不可能的，因为rcu_read_lock_bh临界区内，是不应该发生rcu_sched_qs被调用的情况的。<br>但是，从api的语义角度考虑，不应该这么替代使用。</p>
+<h3 id="rcu-barrier如何使用"><a href="#rcu-barrier如何使用" class="headerlink" title="rcu_barrier如何使用"></a>rcu_barrier如何使用</h3><p>只用于等待确保所有cpu上之前的call_rcu回调全部执行完成。</p>
+<h3 id="rcu-barrier是否可以代替rcu-barrier-bh使用"><a href="#rcu-barrier是否可以代替rcu-barrier-bh使用" class="headerlink" title="rcu_barrier是否可以代替rcu_barrier_bh使用"></a>rcu_barrier是否可以代替rcu_barrier_bh使用</h3><p>不可以。语义上这两个api无关，分别对应的是call_rcu和call_rcu_bh。当前版本的实现也不支持这种代替操作，理由如下。</p>
 <ul>
 <li>如果rcu_sched_state上没有callback的话，rcu_barrier会直接返回。</li>
 <li>qs判定条件不同，虽然时钟中断时synchronize_rcu的判定更严格，但是rcu_sched_qs还有其他的调用位置，因此无法保证sched的qs不晚于bh的qs。一次gp的结束是在独立的内核线程中做出的操作，分别是rcu_sched与rcu_bh，内核线程需要调度，因此就算qs同时判定，也可能发生rcu_sched更早被调度，其gp结束更早，其callback被更早调用的情况。</li>
 <li>一个cpu上的callbac的回调会分批执行，默认blimit为10，参数/sys/module/rcutree/parameters/blimit。当执行数超过blimit，且need_resched()为真或非idle且非独立线程时会中断执行，剩余未执行的callback重新挂回rdp-&gt;nxtlist。因此gp结束且开始执行回调时，并不一定所有回调都会执行完，sched的callback都执行完时，bh的callback未执行完也是可能发生的。</li>
 </ul>
 <p>PS：rcu_struct_flavors链表中rcu_bh_state在rcu_sched_state前，遍历所有的rsp时，会先处理rcu_bh_state。但这个顺序依赖于实现，而且在这个问题上也没有作用。</p>
-<h2 id="synchronize-rcu是否可以代替rcu-barrier使用"><a href="#synchronize-rcu是否可以代替rcu-barrier使用" class="headerlink" title="synchronize_rcu是否可以代替rcu_barrier使用"></a>synchronize_rcu是否可以代替rcu_barrier使用</h2><p>不可以。理由如下。</p>
+<h3 id="synchronize-rcu是否可以代替rcu-barrier使用"><a href="#synchronize-rcu是否可以代替rcu-barrier使用" class="headerlink" title="synchronize_rcu是否可以代替rcu_barrier使用"></a>synchronize_rcu是否可以代替rcu_barrier使用</h3><p>不可以。理由如下。</p>
 <ul>
 <li>synchronize_rcu只用了一个cpu的call_rcu回调完成用于标识gp的完成，但是callback的回调是在gp完成以后，分布于多个cpu的，且一个cpu上的callback不一定会一次全部执行完。</li>
 <li>单核情况更严重，synchronize_rcu用了一个快速判定gp完成的方式，直接返回了，完全没有等待callback的效果。</li>
 </ul>
-<h2 id="rcu-barrier是否可以代替synchronize-rcu使用"><a href="#rcu-barrier是否可以代替synchronize-rcu使用" class="headerlink" title="rcu_barrier是否可以代替synchronize_rcu使用"></a>rcu_barrier是否可以代替synchronize_rcu使用</h2><p>不可以。理由如下。</p>
+<h3 id="rcu-barrier是否可以代替synchronize-rcu使用"><a href="#rcu-barrier是否可以代替synchronize-rcu使用" class="headerlink" title="rcu_barrier是否可以代替synchronize_rcu使用"></a>rcu_barrier是否可以代替synchronize_rcu使用</h3><p>不可以。理由如下。</p>
 <ul>
 <li>rcu_barrier会等待所有cpu上的callback都执行完成，如果所有cpu都没有callback挂载，那么会直接返回，不会等待任何qs与gp。</li>
 </ul>
-<h2 id="rcu-sched-qs被调用位置"><a href="#rcu-sched-qs被调用位置" class="headerlink" title="rcu_sched_qs被调用位置"></a>rcu_sched_qs被调用位置</h2><ul>
+<h3 id="rcu-sched-qs被调用位置"><a href="#rcu-sched-qs被调用位置" class="headerlink" title="rcu_sched_qs被调用位置"></a>rcu_sched_qs被调用位置</h3><ul>
 <li>rcu_check_callbacks（时钟中断时判断之前处于用户态或cpu idle）</li>
-<li>rcu_note_context_switch</li>
+<li>rcu_note_context_switch（以下几个调用位置）<ul>
 <li>__kvm_guest_enter，kvm进入guest模式不会持有任何rcu读临界区，在guest模式可能运行较长时间，因此把这看作一个qs，类似切换用户态。</li>
 <li>__schedule，每次调度，看作一个qs</li>
 <li>run_ksoftirqd，每次软中断进程被调用，__do_softirq完成后，被调用，看作一个qs</li>
 <li>process_one_work，workqueue相关，完成每个work后看过一个qs，并尝试检查是否需要调度，用以避免长时间占用cpu（这里判断了TIF_NEED_RESCHED以及当前是否正处于被抢占中，因此不确定非抢占配置下是否会调度）</li>
 </ul>
-<h2 id="rcu-bh-qs被调用位置"><a href="#rcu-bh-qs被调用位置" class="headerlink" title="rcu_bh_qs被调用位置"></a>rcu_bh_qs被调用位置</h2><ul>
+</li>
+</ul>
+<h3 id="rcu-bh-qs被调用位置"><a href="#rcu-bh-qs被调用位置" class="headerlink" title="rcu_bh_qs被调用位置"></a>rcu_bh_qs被调用位置</h3><ul>
 <li>rcu_check_callbacks（时钟中断时判断之前处于用户态或cpu idle，这里的qs是与rcu_shed_qs相同的）</li>
 <li>rcu_check_callbacks（不满足上面的条件，但是处于非软中断状态。因为rcu_read_lock_bh会关软中断，in_softirq会判定处于软中断状态。因此非软中断状态也就是不在读临界区）</li>
 </ul>
-<h2 id="rcu-preempt-qs被调用位置（大致，不准确）"><a href="#rcu-preempt-qs被调用位置（大致，不准确）" class="headerlink" title="rcu_preempt_qs被调用位置（大致，不准确）"></a>rcu_preempt_qs被调用位置（大致，不准确）</h2><ul>
-<li>rcu_read_unlock_special（离开最外层临界区时）</li>
-<li>rcu_preempt_note_context_switch &lt;- rcu_note_context_switch（每次）</li>
-<li>rcu_preempt_check_callbacks &lt;- rcu_check_callbacks（不处于临界区中时）</li>
+<h3 id="rcu-preempt-qs被调用位置"><a href="#rcu-preempt-qs被调用位置" class="headerlink" title="rcu_preempt_qs被调用位置"></a>rcu_preempt_qs被调用位置</h3><ul>
+<li>rcu_read_unlock_special（离开最外层临界区需要处理阻塞的rnp时）</li>
+<li>rcu_preempt_note_context_switch &lt;- rcu_note_context_switch（参考<a href="#抢占式RCU">抢占式RCU</a>）</li>
+<li>rcu_preempt_check_callbacks &lt;- rcu_check_callbacks（时钟中断时判断当前进程是否处于临界区）</li>
 </ul>
-<h2 id="rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）"><a href="#rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）" class="headerlink" title="rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）"></a>rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）</h2><p>rcu_barrier_sched / rcu_barrier_bh 的区别仅为对不同的rsp调用_rcu_barrier<br>_rcu_barrier，简略描述即为在每个cpu上调用call_rcu_XXX，并等待所有回调完成。那么之前的回调当然也已经都完成了。</p>
+<h3 id="rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）"><a href="#rcu-barrier-sched实现（在非抢占配置下即为rcu-barrier）" class="headerlink" title="rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）"></a>rcu_barrier_sched实现（在非抢占配置下即为rcu_barrier）</h3><p>rcu_barrier_sched / rcu_barrier_bh 的区别仅为对不同的rsp调用_rcu_barrier<br>_rcu_barrier，简略描述即为在每个cpu上调用call_rcu_XXX，并等待所有回调完成。那么之前的回调当然也已经都完成了。</p>
 <ul>
 <li>读取rsp-&gt;n_barrier_done</li>
 <li>上锁rsp-&gt;barrier_mutex</li>
@@ -77,7 +158,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <li>等待rsp-&gt;barrier_completion完成</li>
 <li>解锁rsp-&gt;barrier_mutex</li>
 </ul>
-<h2 id="synchronize-sched实现（在非抢占配置下即为synchronize-rcu）"><a href="#synchronize-sched实现（在非抢占配置下即为synchronize-rcu）" class="headerlink" title="synchronize_sched实现（在非抢占配置下即为synchronize_rcu）"></a>synchronize_sched实现（在非抢占配置下即为synchronize_rcu）</h2><ul>
+<h3 id="synchronize-sched实现（在非抢占配置下即为synchronize-rcu）"><a href="#synchronize-sched实现（在非抢占配置下即为synchronize-rcu）" class="headerlink" title="synchronize_sched实现（在非抢占配置下即为synchronize_rcu）"></a>synchronize_sched实现（在非抢占配置下即为synchronize_rcu）</h3><ul>
 <li>rcu_blocking_is_gp，判断当前在线cpu数，如果为1，则判定为当前gp已经完成，不存在未完成的临界区，直接返回。</li>
 <li>wait_rcu_gp，参数call_rcu_sched<ul>
 <li>初始化栈上的rcu_head和completion</li>
