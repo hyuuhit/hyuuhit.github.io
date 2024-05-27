@@ -37,7 +37,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <p>单模使用<code>netlink_unicast</code>，实现参考<a href="#netlink-unicast">用户态sendto的单播实现</a>。</p>
 <p>组播使用<code>netlink_multicast</code>，这只是<code>netlink_broadcast</code>的简单包装，实现参考<a href="#netlink-broadcast">用户态sendto的组播实现</a>。</p>
 <h2 id="netlink-实现"><a href="#netlink-实现" class="headerlink" title="netlink 实现"></a>netlink 实现</h2><p>先看一下netlink socket在内核中的实现的结构关系。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/08/netlink.jpg" alt="abc"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/08/netlink.jpg" alt="abc"></p>
 <h3 id="netlink-协议初始化"><a href="#netlink-协议初始化" class="headerlink" title="netlink 协议初始化"></a>netlink 协议初始化</h3><p>内核在启动阶段完成netlink协议的初始化，函数为<code>netlink_proto_init</code>，重点为两点。</p>
 <ul>
 <li><code>nl_table</code>的内存分配与哈希表初始化。</li>

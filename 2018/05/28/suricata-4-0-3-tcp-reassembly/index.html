@@ -43,7 +43,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <li>更新session和其成员client与server的tcp协议头相关字段.</li>
 <li>调用函数StreamTcpReassembleHandleSegment。</li>
 </ul>
-<p>tcp状态机可以参考此图，suricata中tcp session状态记录与server端状态一致，区别在于TCP_SYN_SENT在实际server端是不存在的，但是suricata中记录此状态。<br><img src="http://blog-image.hyuuhit.com/2018/05/suricata-flowworker/tcp-state.jpg" alt="tcp状态迁移"></p>
+<p>tcp状态机可以参考此图，suricata中tcp session状态记录与server端状态一致，区别在于TCP_SYN_SENT在实际server端是不存在的，但是suricata中记录此状态。<br><img src="//blog-image.hyuuhit.com/2018/05/suricata-flowworker/tcp-state.jpg" alt="tcp状态迁移"></p>
 <h2 id="tcp-reassembly"><a href="#tcp-reassembly" class="headerlink" title="tcp reassembly"></a>tcp reassembly</h2><p>StreamTcpReassembleHandleSegment函数用来处理tcp stream中的数据，这里的处理逻辑区分了suricata的当前模式是IDS还是IPS。</p>
 <ul>
 <li>IDS模式下。<ul>
@@ -72,7 +72,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 </ul>
 </li>
 </ul>
-<p><img src="http://blog-image.hyuuhit.com/2018/05/suricata-flowworker/stream.png" alt="stream数据缓存"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/05/suricata-flowworker/stream.png" alt="stream数据缓存"></p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">TcpSession_</span> &#123;</span></span><br><span class="line">    PoolThreadReserved res;</span><br><span class="line">    <span class="keyword">uint8_t</span> state;</span><br><span class="line">    <span class="keyword">uint8_t</span> queue_len;                      <span class="comment">/**&lt; length of queue list below */</span></span><br><span class="line">    <span class="keyword">int8_t</span> data_first_seen_dir;</span><br><span class="line">    <span class="comment">/** track all the tcp flags we've seen */</span></span><br><span class="line">    <span class="keyword">uint8_t</span> tcp_packet_flags;</span><br><span class="line">    <span class="comment">/* coccinelle: TcpSession:flags:STREAMTCP_FLAG */</span></span><br><span class="line">    <span class="keyword">uint16_t</span> flags;</span><br><span class="line">    <span class="keyword">uint32_t</span> reassembly_depth;      <span class="comment">/**&lt; reassembly depth for the stream */</span></span><br><span class="line">    TcpStream server;</span><br><span class="line">    TcpStream client;</span><br><span class="line">    TcpStateQueue *<span class="built_in">queue</span>;                   <span class="comment">/**&lt; list of SYN/ACK candidates */</span></span><br><span class="line">&#125; TcpSession;</span><br></pre></td></tr></table></figure>
 <ul>
 <li>res<br>PoolThread使用的的id号。</li>

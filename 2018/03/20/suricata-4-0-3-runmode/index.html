@@ -34,7 +34,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 </ul>
 </li>
 </ul>
-<p><img src="http://blog-image.hyuuhit.com/2018/03/suricata-runmode/runmode-struct.png" alt="runmode注册完成后结构如图"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/03/suricata-runmode/runmode-struct.png" alt="runmode注册完成后结构如图"></p>
 <h3 id="抓包模式"><a href="#抓包模式" class="headerlink" title="抓包模式"></a>抓包模式</h3><p>抓包模式由命令行参数指定，可以直接指定抓包模式，也可以通过<code>-i</code>参数在编译有AF_PACKET时使用AF_PACKET否则使用pcap抓包。main函数中存在局部变量suri，抓包模式runmode写入suri.run_mode中。抓包设备列表会注册到一个<code>LiveDevice</code>结构链表中，最后一个抓包设备名写入suri.pcap_dev。参考<a href="/2018/03/07/suricata-4-0-3-配置模块/" title="suricata 4.0.3 配置模块">suricata 4.0.3 配置模块</a></p>
 <h3 id="线程模型"><a href="#线程模型" class="headerlink" title="线程模型"></a>线程模型</h3><ol>
 <li>线程模型由命令行参数<code>--runmode</code>指定，参数值会被写入suri.runmode_custom_mode，后续操作中会被写入配置模块的runmode项。</li>

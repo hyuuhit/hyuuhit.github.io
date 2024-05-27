@@ -29,7 +29,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <h3 id="删除读取并发"><a href="#删除读取并发" class="headerlink" title="删除读取并发"></a>删除读取并发</h3><p>删除操作（包括更新）与插入不同的是，还要面对旧数据结构回收的问题，写者必须要等待可能持有旧数据结构的读者不再读取旧数据结构后才可以执行回收操作，在RCU中这个等待的读者操作区间叫做RCU读者临界区，一个读者调用的<code>rcu_read_lock</code>和<code>rcu_read_unlock</code>原语分别标识了临界区的开始和结束，临界区可以嵌套，可以包含任意多的代码，但是不能够显式的阻塞和睡眠（也就是不能触发调度）。</p>
 <p>RCU等待相关的临界区退出，但并不直接判断临界区何时退出，实现细节见下文的<a href="./#RCU-实现">RCU实现</a>。</p>
 <p>参考下图，RCU以一种称为宽限期（Grace Period）的方式等待已经存在的临界区运行结束。需要注意的是，grace period开始之后才开始的临界区并不会影响grace period的结束时间。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/GracePeriodGood.png" alt="Grace Period"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/GracePeriodGood.png" alt="Grace Period"></p>
 <p>下面展示一种基础的RCU等待读者操作完成的算法：</p>
 <ol>
 <li>做修改操作，比如修改全局变量指针的指向。</li>
@@ -63,32 +63,32 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <h3 id="链表删除"><a href="#链表删除" class="headerlink" title="链表删除"></a>链表删除</h3><p>以下代码作为RCU链表删除的例子。</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">foo</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">list</span>;</span></span><br><span class="line">    <span class="keyword">int</span> a;</span><br><span class="line">    <span class="keyword">int</span> b;</span><br><span class="line">    <span class="keyword">int</span> c;</span><br><span class="line">&#125;;</span><br><span class="line">LIST_HEAD(head);</span><br><span class="line"></span><br><span class="line"><span class="comment">/* . . . */</span></span><br><span class="line"></span><br><span class="line">p = search(head, key);</span><br><span class="line"><span class="keyword">if</span> (p != <span class="literal">NULL</span>) &#123;</span><br><span class="line">    list_del_rcu(&amp;p-&gt;<span class="built_in">list</span>);</span><br><span class="line">    synchronize_rcu();</span><br><span class="line">    kfree(p);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>假设包含指针p的链表初始状态如下：</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_1.jpg" alt="链表初始状态"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_1.jpg" alt="链表初始状态"></p>
 <p>每个元素中的三个成员分别代表a、b、c的值。每个元素的红色边框表示可能有读者持有它们的引用，由于读者并没有与写者直接同步，因此读者可能会与修改操作并发执行。</p>
 <p>第13行的<code>list_del_rcu</code>运行结束后，如下图所示，元素<code>5,6,7</code>被从链表中移除。因为读者并没有与写者做直接同步，仍可能有读者正在遍历该链表。这些读者可能看到刚刚移除的元素，也可能看不到，这取决于读者遍历和写者修改的时机。那些看到了旧版本链表的读者可能在元素被从链表移除后仍然访问该元素。这时元素<code>5,6,7</code>的边框仍是红色的，此时在不同的读者看来链表存在两个版本。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_2.jpg" alt="链表移除p后"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_2.jpg" alt="链表移除p后"></p>
 <p>这里需要注意的是，读者在离开临界区后，绝对不允许再持有链表任何元素的引用（也就是不允许再访问链表的任何元素）。因为一旦14行的<code>synchronize_rcu</code>执行完毕，意味着所有之前的读者都已经离开了临界区，没有任何读者可能持有刚刚移除的元素p，可以看到它由黑框标识，此时所有的读者看到的链表又回归为唯一的版本。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_3.jpg" alt="链表经历grace period后"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_3.jpg" alt="链表经历grace period后"></p>
 <p>这时p指向的元素<code>5,6,7</code>可以被安全的释放了。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_4.jpg" alt="链表元素p释放后"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_4.jpg" alt="链表元素p释放后"></p>
 <h3 id="链表修改"><a href="#链表修改" class="headerlink" title="链表修改"></a>链表修改</h3><p>以下代码作为RCU链表修改的例子。</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">q = kmalloc(<span class="keyword">sizeof</span>(*p), GFP_KERNEL);</span><br><span class="line">*q = *p;</span><br><span class="line">q-&gt;b = <span class="number">2</span>;</span><br><span class="line">q-&gt;c = <span class="number">3</span>;</span><br><span class="line">list_replace_rcu(&amp;p-&gt;<span class="built_in">list</span>, &amp;q-&gt;<span class="built_in">list</span>);</span><br><span class="line">synchronize_rcu();</span><br><span class="line">kfree(p);</span><br></pre></td></tr></table></figure>
 <p>假设包含指针p的链表初始状态如下：</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_1.jpg" alt="链表初始状态"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_1.jpg" alt="链表初始状态"></p>
 <p>第一行<code>kmalloc</code>分配了一个待替换的元素。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_1.jpg" alt="分配待替换元素"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_1.jpg" alt="分配待替换元素"></p>
 <p>第二行将旧元素内容复制给新元素。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_2.jpg" alt="复制旧元素内容"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_2.jpg" alt="复制旧元素内容"></p>
 <p>第三行将新元素成员b的值更新为2。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_3.jpg" alt="更新新元素内容"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_3.jpg" alt="更新新元素内容"></p>
 <p>第四行将新元素成员c的值更新为3。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_4.jpg" alt="更新新元素内容"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_4.jpg" alt="更新新元素内容"></p>
 <p>到第五行，做了替换操作，这时新的元素可以被读者看到了。如下图所示，此时链表存在两个版本，之前的读者可能看到元素<code>5,6,7</code>，新的读者看到的将是元素<code>5,2,3</code>，但是任何读者看到的都是一个可以顺利遍历的合理的链表。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_5.jpg" alt="替换链表元素"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_5.jpg" alt="替换链表元素"></p>
 <p>第六行<code>synchronize_rcu</code>执行后，会经历一个grace period，之后所有的在<code>list_replace_rcu</code>之前进入临界区的读者都已经完成读操作离开了临界区，并且不会有新的读者访问到元素<code>5,6,7</code>。这时链表回归到唯一版本。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_6.jpg" alt="链表经历grace period后"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_6.jpg" alt="链表经历grace period后"></p>
 <p>第七行<code>kfree</code>执行后，链表如下所示。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_list_replace_7.jpg" alt="链表最终状态"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/10/rcu_list_replace_7.jpg" alt="链表最终状态"></p>
 <p>尽管RCU的命名来源是替换场景，但是Linux内核中大多数RCU操作都是前文所示的<a href="./#链表删除">链表删除</a>。</p>
 <h2 id="RCU-实现"><a href="#RCU-实现" class="headerlink" title="RCU 实现"></a>RCU 实现</h2><p>在不同的编译配置下有不同的RCU实现，比如经典RCU、可抢占RCU、可睡眠RCU，这里只记录经典RCU的实现（也是典型服务器配置下使用的RCU）。经典RCU的实现又分为rcu tiny和rcu tree，tiny版只适用于UP单核系统，树形RCU适用于SMP多核系统，这里记录树形RCU实现。</p>
 <p>下面可能直接使用简称，rsp（rcu_state pointer），rnp(rcu_node pointer)，（rcu_data pointer）。</p>
@@ -155,7 +155,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <li><code>[*nxttail[RCU_NEXT_READY_TAIL], *nxttail[RCU_NEXT_TAIL])</code><br>可能是当前gp结束后到来的callback</li>
 </ul>
 <p>这里<code>*nxttail[RCU_NEXT_TAIL]</code>永远都是NULL，因为这是链表末尾。</p>
-<h4 id="树形结构"><a href="#树形结构" class="headerlink" title="树形结构"></a>树形结构</h4><p><img src="http://blog-image.hyuuhit.com/2018/10/rcu_struct.jpg" alt="RCU树形结构"></p>
+<h4 id="树形结构"><a href="#树形结构" class="headerlink" title="树形结构"></a>树形结构</h4><p><img src="//blog-image.hyuuhit.com/2018/10/rcu_struct.jpg" alt="RCU树形结构"></p>
 <h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><p>RCU所需要的初始化操作在多个位置：</p>
 <ul>
 <li><code>rcu_init</code>初始化了RCU所需要的全局数据结构（也是树形几何结构），位于<code>start_kernel</code> -&gt; <code>rcu_init</code>。</li>

@@ -12,7 +12,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
   })();</script></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">libpcap在libvirt虚拟化环境下捕获数据包不完整的一种情况分析</h1><a id="logo" href="/.">属乌鸦的</a><p class="description">无知 &amp; 聒噪</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">libpcap在libvirt虚拟化环境下捕获数据包不完整的一种情况分析</h1><div class="post-meta">Nov 16, 2019<span> | </span><span class="category"><a href="/categories/suricata/">suricata</a></span></div><div class="post-content"><p>在虚拟化环境下镜像流量交给suricata分析，遇到了文件还原不完整的问题，同环境下使用tcpdump抓包查看可以看到捕获的数据包存在大包被截断的情况。这里分析一下为什么tcpdump会出现数据包被截断的情况以及什么条件下会触发该情况，suricata的问题不完全一致，但是基本思路是一样的。</p>
 <p>虚拟机操作系统：CentOS Linux release 7.5.1804<br>参考libpcap版本：<code>Date:   Tue Nov 5 00:10:15 2019 -0800, 79817f</code></p>
 <h2 id="数据包截断"><a href="#数据包截断" class="headerlink" title="数据包截断"></a>数据包截断</h2><p>tcpdump捕获的文件查看如图，可以看到捕获到的数据包不完整。</p>
-<p><img src="http://blog-image.hyuuhit.com/2019/11/tcpdump_captured.jpg" alt="tcpdump捕获文件"></p>
+<p><img src="//blog-image.hyuuhit.com/2019/11/tcpdump_captured.jpg" alt="tcpdump捕获文件"></p>
 <h2 id="截断发生条件"><a href="#截断发生条件" class="headerlink" title="截断发生条件"></a>截断发生条件</h2><p>因为所处虚拟化环境，外部转发进大数据包的情况比较多样，暂时不考虑外部，仅关注转发进大数据包后本地捕获被截断的情况，这里可以用http下载一个较大文件模拟。</p>
 <ol>
 <li>tcpdump参数中指定特定网卡，比如。这里如果指定网卡为any则不会发生截断。<br> <code>sudo tcpdump -i eth0 -nn tcp port 9090 -w longin.pcap</code></li>

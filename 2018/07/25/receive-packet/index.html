@@ -13,7 +13,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <a id="more"></a>
 <p>本文内容参考内核版本 3.10.0-862.el7.x86_64</p>
 <p>ps：用词上不区分帧与数据包。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/07/receive_packet.jpg" alt="链路层收包流程对比"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/07/receive_packet.jpg" alt="链路层收包流程对比"></p>
 <h2 id="数据结构"><a href="#数据结构" class="headerlink" title="数据结构"></a>数据结构</h2><h3 id="softnet-data"><a href="#softnet-data" class="headerlink" title="softnet_data"></a>softnet_data</h3><p>网络数据包接收中一个重要变量是per-cpu变量的softnet_data，使用中简称为sd，其中统一了非napi驱动和napi驱动的处理逻辑。几个后文涉及的成员如下：</p>
 <ul>
 <li>input_pkt_queue<br>非napi设备ISR收包时将skb放入该队列，等待软中断处理。</li>

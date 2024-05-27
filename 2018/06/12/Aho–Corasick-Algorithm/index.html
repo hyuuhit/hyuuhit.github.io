@@ -18,13 +18,13 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <h2 id="算法构造"><a href="#算法构造" class="headerlink" title="算法构造"></a>算法构造</h2><p>以模式集合{he，she，his，hers}为例，记录AC自动机的构造过程。算法中涉及到三种表，分别是goto表、failure表、output表，在下面描述AC自动机构造时会介绍。</p>
 <h3 id="goto表"><a href="#goto表" class="headerlink" title="goto表"></a>goto表</h3><p>AC自动机构造第一就是用所有的字典模式构造一个Trie树，在算法中也称为goto表，在每个字符输入后根据goto表中的记录完成下一个状态节点的跳转。</p>
 <ol>
-<li><p>初始状态0，添加”he”后新增了两个状态，分别是状态0接收输入字符’h’跳转到状态1，状态1接收输入字符’e’跳转到状态2。状态2加粗，这里表示该状态匹配到了相应的模式，也就是存在输出”he”，这个输出将是output表的一部分。<br><img src="http://blog-image.hyuuhit.com/2018/06/ac/goto-1.jpg" alt="goto表添加模式&quot;he&quot;"></p>
+<li><p>初始状态0，添加”he”后新增了两个状态，分别是状态0接收输入字符’h’跳转到状态1，状态1接收输入字符’e’跳转到状态2。状态2加粗，这里表示该状态匹配到了相应的模式，也就是存在输出”he”，这个输出将是output表的一部分。<br><img src="//blog-image.hyuuhit.com/2018/06/ac/goto-1.jpg" alt="goto表添加模式&quot;he&quot;"></p>
 </li>
-<li><p>继续添加模式”she”，从状态0开始添加，同上一步一样，新增了状态3、4、5，状态5存在输出。<br><img src="http://blog-image.hyuuhit.com/2018/06/ac/goto-2.jpg" alt="goto表添加模式&quot;she&quot;"></p>
+<li><p>继续添加模式”she”，从状态0开始添加，同上一步一样，新增了状态3、4、5，状态5存在输出。<br><img src="//blog-image.hyuuhit.com/2018/06/ac/goto-2.jpg" alt="goto表添加模式&quot;she&quot;"></p>
 </li>
-<li><p>继续添加模式”his”，这里需要注意的是在一个状态遇到相同字符时要重复利用之前生成的状态和状态跳转，比如状态0接收字符’h’跳转到状态1是已经存在的。<br><img src="http://blog-image.hyuuhit.com/2018/06/ac/goto-3.jpg" alt="goto表添加模式&quot;his&quot;"></p>
+<li><p>继续添加模式”his”，这里需要注意的是在一个状态遇到相同字符时要重复利用之前生成的状态和状态跳转，比如状态0接收字符’h’跳转到状态1是已经存在的。<br><img src="//blog-image.hyuuhit.com/2018/06/ac/goto-3.jpg" alt="goto表添加模式&quot;his&quot;"></p>
 </li>
-<li><p>最后添加模式”hers”，到这里goto表构造完成。这里有一点特殊的是，字典添加完成后，状态0对于所有不合法的输入字符均跳转到其本身，也就是状态0合法接收所有输入字符。<br><img src="http://blog-image.hyuuhit.com/2018/06/ac/goto-4.jpg" alt="goto表添加模式&quot;hers&quot;"></p>
+<li><p>最后添加模式”hers”，到这里goto表构造完成。这里有一点特殊的是，字典添加完成后，状态0对于所有不合法的输入字符均跳转到其本身，也就是状态0合法接收所有输入字符。<br><img src="//blog-image.hyuuhit.com/2018/06/ac/goto-4.jpg" alt="goto表添加模式&quot;hers&quot;"></p>
 </li>
 </ol>
 <h3 id="failure表"><a href="#failure表" class="headerlink" title="failure表"></a>failure表</h3><p>构造failure表前，先引入一个深度的概念，一个状态的深度是在goto表中从状态0到该状态的路径长度，这个路径是唯一的。</p>
@@ -90,7 +90,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 </tbody>
 </table>
 <p>将failure表用虚线表示，整合goto表。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/06/ac/failure.jpg" alt="failure表与goto表整合"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/06/ac/failure.jpg" alt="failure表与goto表整合"></p>
 <h3 id="output表"><a href="#output表" class="headerlink" title="output表"></a>output表</h3><p>output表，即到达某个状态节点时记录哪些模式匹配成功。构造过程分两步，在上面构造goto表和failure表时有提到。</p>
 <ol>
 <li>构造goto表时，每个模式串结束的状态都加入到output表。</li>

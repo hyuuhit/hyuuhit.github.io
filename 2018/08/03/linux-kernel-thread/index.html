@@ -44,7 +44,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 </li>
 </ul>
 <h2 id="生命周期流程"><a href="#生命周期流程" class="headerlink" title="生命周期流程"></a>生命周期流程</h2><p>在看具体代码前看一下内核线程生命周期中的大体流程。</p>
-<p><img src="http://blog-image.hyuuhit.com/2018/08/linux-kernel-thread/linux_kernel_thread.jpg" alt="内核线程生命周期"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/08/linux-kernel-thread/linux_kernel_thread.jpg" alt="内核线程生命周期"></p>
 <h2 id="内核线程创建"><a href="#内核线程创建" class="headerlink" title="内核线程创建"></a>内核线程创建</h2><p>内核线程的创建与中断处理的处理思路很相似，尽量将占用cpu时间长的处理逻辑推到下半部在另外的时间执行，尽快完成上半部操作，以让出cpu执行优先级更高的任务。</p>
 <h3 id="上半部"><a href="#上半部" class="headerlink" title="上半部"></a>上半部</h3><p>通过上文的api可以看到创建内核线程最后都会落到函数<code>kthread_create_on_node</code>，这个函数的逻辑很简单：</p>
 <ul>

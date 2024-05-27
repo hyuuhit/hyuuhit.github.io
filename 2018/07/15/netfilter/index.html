@@ -29,7 +29,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <li><code>NF_INET_LOCAL_OUT</code><br>本地向外发出的数据包会先经过output点。</li>
 <li><code>NF_INET_POST_ROUTING</code><br>本地向外发出的数据包经过output点后会经过post_routing点，转发的数据包经过forward点后也会经过post_routing点。</li>
 </ul>
-<p><img src="http://blog-image.hyuuhit.com/2018/07/netfilter.png" alt="netfilter hooks"></p>
+<p><img src="//blog-image.hyuuhit.com/2018/07/netfilter.png" alt="netfilter hooks"></p>
 <figure class="highlight c"><figcaption><span>定义在include/uapi/linux/netfilter.h</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">enum</span> nf_inet_hooks &#123;</span><br><span class="line">    NF_INET_PRE_ROUTING,</span><br><span class="line">    NF_INET_LOCAL_IN,</span><br><span class="line">    NF_INET_FORWARD,</span><br><span class="line">    NF_INET_LOCAL_OUT,</span><br><span class="line">    NF_INET_POST_ROUTING,</span><br><span class="line">    NF_INET_NUMHOOKS</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 <h2 id="裁决值"><a href="#裁决值" class="headerlink" title="裁决值"></a>裁决值</h2><ul>
 <li><code>NF_DROP</code><br>netfilter框架将丢掉该数据包并释放相关资源。</li>

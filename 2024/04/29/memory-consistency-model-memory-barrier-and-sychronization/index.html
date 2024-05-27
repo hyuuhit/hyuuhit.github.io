@@ -46,7 +46,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <p>当然CPU实际上要复杂得多，这里的描述只是一个更有利于直观理解的假设的架构，实际软件开发中是不应该依赖这种简单不准确的描述。</p>
 <p>操作系统开发人员应该关注的是每种CPU允许的重排类型，提供合适的内存屏障、原子操作及其他类型同步工具api的封装。<br>驱动开发人员应该关注于正确理解这些工具api的语义，并正确使用这些封装后的api（假定运行的CPU均为Alpha架构）。</p>
 <h2 id="都有哪些内存访问重排类型？"><a href="#都有哪些内存访问重排类型？" class="headerlink" title="都有哪些内存访问重排类型？"></a>都有哪些内存访问重排类型？</h2><p>参考下图。其中Incoherent instruction cache/pipeline，个人理解应该是指令和数据使用不同的缓存，因此self-modifying code修改指令内存后需要特定的指令刷新指令缓存。</p>
-<p><img src="http://blog-image.hyuuhit.com/2024/04/memory_ordering.png" alt="memory ordering in some architectures"></p>
+<p><img src="//blog-image.hyuuhit.com/2024/04/memory_ordering.png" alt="memory ordering in some architectures"></p>
 <h2 id="都有哪些内存一致性模型？"><a href="#都有哪些内存一致性模型？" class="headerlink" title="都有哪些内存一致性模型？"></a>都有哪些内存一致性模型？</h2><p>不同架构CPU因为硬件设计不同，允许的重排类型不同。内存一致性模型定义了该模型下允许的重排类型，几个典型的内存一致性模型如下：</p>
 <ul>
 <li>顺序一致性（Sequential Consistency）模型。完全不允许重排。</li>
