@@ -154,7 +154,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <p>这个提交修复了上面的bug。centos7.5 3.10.0-862.el7.x86_64内核修复了该bug。7.3和7.4未检查验证</p>
 <p>该提交先将token值的buffer和mtu转换为纳秒值的buffer和mtu，再使用纳秒值和限速速率计算出max_size。<br>这样dequeue时通过字节数计算得到的纳秒数就可以匹配buffer和mtu的纳秒数了。<br>这里开始rtab、ptab不再有作用了。</p>
 <h3 id="3-14rc1"><a href="#3-14rc1" class="headerlink" title="3.14rc1"></a>3.14rc1</h3><p>3.14rc1开始包含了这个提交<a href="https://github.com/torvalds/linux/commit/2e04ad424b03661ec8239acd52146497eb33be1c" target="_blank" rel="noopener">2e04ad4 sch_tbf: add TBF_BURST/TBF_PBURST attribute</a></p>
-<p>加了TCA_TBF_BURST/TCA_TBF_PBURST这两个参数，直接传递buffer和mtu的字节数。<br>当新增的参数存在时，用于确定max_size，内核保存的buffer和mtu纳秒值由新增的字节单位参数计算得到。<br>这时使用tc命令读取tbf配置时，burst和minburst可以展示为配置时的值。在此之前tc显示tbf的配置与设置时的参数大部分情况下是不符的。</p>
+<p>加了TCA_TBF_BURST/TCA_TBF_PBURST这两个参数，直接传递buffer和mtu的字节数。<br>当新增的参数存在时，用于确定max_size，内核保存的buffer和mtu纳秒值由新增的字节单位参数计算得到。<br>这时使用tc命令配置tbf时，可以精确生效字节单位配置。<br>但是截止2024年7月的v6.10.0版本iproute2项目中tc命令依然未能读取内核输出的这两个参数，还是只读取了旧版本的token值的buffer和mtu，导致展示配置时与内核保存的实际配置有偏差。</p>
 <h3 id="BUG规避"><a href="#BUG规避" class="headerlink" title="BUG规避"></a>BUG规避</h3><p>对比存在bug的内核，bug的触发，是由于计算出的max_size相对buffer对应的字节数大了，导致dequeue检查失败。<br>max_size的计算受buffer和cell_log共同影响，只要确保max_size绝对小于buffer对应的字节数就可以规避bug。<br>因此，配置合适的buffer和cell_log就可以确保bug不会发生。</p>
 <p>比如<a href="#例1">例1数据</a>中，buffer设置30813，cell_log为7时，max_size为30847，bug可能触发。<br>修改cell_log为6，buffer不变，max_size变为16383。(16383 * 2147483648) &gt;&gt; 27 = 262128，远小于buffer的纳秒值492992，bug不会触发。</p>
 <p>比如<a href="#例2">例2数据</a>中，buffer设置1601，cell_log默认为3时，max_size为1607，bug可能触发。<br>修改buffer设置为3200，cell_log手动指定为3，max_size变为2047。(2047 * 2684354560) &gt;&gt; 25 = 163760，远小于buffer的纳秒值256000，bug不会触发。</p>
