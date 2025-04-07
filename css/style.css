@@ -770,7 +770,7 @@ figure.highlight,
   .codeblock .code,
   .codeblock .tag {
     background-color: inherit;
-    font-family: sans-serif, Menlo, Consolas, monospace;
+    font-family: "sans-serif", NSimSun, Menlo, Consolas, monospace;
     border: none;
     padding: 0;
     margin: 0;
