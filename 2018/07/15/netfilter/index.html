@@ -41,7 +41,7 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 </ul>
 <ul>
 <li><code>NF_VERDICT_MASK</code><br>裁决动作掩码。由于<code>NF_DROP</code>和<code>NF_QUEUE</code>在裁决动作之外可能需要额外的信息附带在返回值中，因此使用该掩码过滤掉其他信息只保留裁决动作。</li>
-<li><code>NF_VERDICT_FLAG_QUEUE_BYPASS</code><br>该flag位用于标记NFQUEUE入队列失败之后是否进行后续处理。如果没有该flag，入队列失败后将直接释放数据包资源。如果包含该flag，入队列失败后将等同于<code>NF_ACCEPT</code>做后续处理。</li>
+<li><code>NF_VERDICT_FLAG_QUEUE_BYPASS</code><br>该flag位用于标记NFQUEUE队列号不存在对应的队列时是否进行后续处理。如果没有该flag，队列不存在则将直接释放数据包资源。如果包含该flag，队列不存在将等同于<code>NF_ACCEPT</code>做后续处理。这个flag不对队列满的情况产生影响，队列配置的NFQA_CFG_F_FAIL_OPEN影响该情况。</li>
 <li><code>NF_VERDICT_QMASK</code><br>该掩码记录了用于NFQUEUE队列号的bit位。</li>
 <li><p><code>NF_VERDICT_QBITS</code><br>回调函数裁决<code>NF_QUEUE</code>时，返回值右移此尾数以取到NFQUEUE队列号。</p>
 </li>
