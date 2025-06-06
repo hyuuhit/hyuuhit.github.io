@@ -17,6 +17,8 @@ ga('create','UA-129648993-1','auto');ga('send','pageview');
 <li><p>交互式shell的定义稍微复杂一点<br>一个不包含“non-option arguments”并且没有<code>-c</code>参数的shell，它的输入和错误都连接到终端。或者一个启动参数包含<code>-i</code>的shell。<br>这里的“non-option arguments”就是不包含在选项范围内的参数，也就是将要执行的脚本文件。比如<code>bash SOME_SCRIPT_FILE</code>。<br>以<code>-c</code>参数启动的bash，将会启动一个bash，而后调用exec函数族执行参数中指定的程序。</p>
 </li>
 </ul>
+<p>当前是否交互式shell，可以通过打印变量<code>$-</code>判断，包含字符<code>i</code>的即为交互式shell</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[huyu@centos1804 ~]$ echo $-</span><br><span class="line">himBH</span><br></pre></td></tr></table></figure>
 <h2 id="获取bash"><a href="#获取bash" class="headerlink" title="获取bash"></a>获取bash</h2><p>从定义可以看到，登录shell和交互式shell是从两个正交的角度描述的，因此可以取得的bash类型可以有四种</p>
 <ul>
 <li><p>login and interactive shell<br>既是登录shell，又是交互式shell。</p>

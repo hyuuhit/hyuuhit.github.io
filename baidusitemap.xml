@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.hyuuhit.com/2019/08/20/bash-invocation/</loc>
+    <lastmod>2025-06-06T08:21:48.352Z</lastmod>
+  </url>  <url>
     <loc>https://www.hyuuhit.com/2025/06/02/stop-machine/</loc>
     <lastmod>2025-06-02T23:45:59.684Z</lastmod>
   </url>  <url>
@@ -45,9 +48,6 @@
   </url>  <url>
     <loc>https://www.hyuuhit.com/2019/08/27/bash-audit/</loc>
     <lastmod>2024-05-27T02:21:18.731Z</lastmod>
-  </url>  <url>
-    <loc>https://www.hyuuhit.com/2019/08/20/bash-invocation/</loc>
-    <lastmod>2024-05-27T02:21:18.723Z</lastmod>
   </url>  <url>
     <loc>https://www.hyuuhit.com/2019/08/17/uriparser/</loc>
     <lastmod>2024-05-27T02:21:18.716Z</lastmod>
